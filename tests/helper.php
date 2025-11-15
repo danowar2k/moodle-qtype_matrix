@@ -232,7 +232,7 @@ class qtype_matrix_test_helper extends question_test_helper {
     private function generate_matrix_row_or_column(int $id, bool $row) {
         $roworcolumn = (object) [];
         $roworcolumn->id = $id;
-        $roworcolumn->shorttext = ($row ? "Row " : "Column ") + $id;
+        $roworcolumn->shorttext = ($row ? "Row " : "Column ").$id;
         $roworcolumn->description = "Description $id";
         if ($row) {
             $roworcolumn->feedback = "Feedback $id";
