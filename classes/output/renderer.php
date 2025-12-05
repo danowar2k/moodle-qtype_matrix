@@ -66,12 +66,8 @@ class renderer extends qtype_with_combined_feedback_renderer {
             if (!$showfeedback && $colindex == ($nrcols - 1)) {
                 $lastcol = true;
             }
-            $context['answerheaders'][] = $this->headercontext($col, $colindex, $lastcol);
+            $context['answerheaders'][] = $this->headercontext($col, $lastcol);
             $colindex++;
-        }
-        // Finally the optional feedback column header
-        if ($showfeedback) {
-            $context['feedbackcellclass'] = 'c' . $colindex;
         }
         $context['rows'] = [];
 
@@ -81,11 +77,11 @@ class renderer extends qtype_with_combined_feedback_renderer {
         $currentrow = 1;
         foreach ($order as $rowid) {
             $rowcontext = [];
-            $rowcellindex = 0;
             $row = $question->rows[$rowid];
-            $rowcontext['header'] = $this->headercontext($row, $rowcellindex++, false);
+            $rowcontext['header'] = $this->headercontext($row, false);
             $rowcontext['cells'] = [];
             $lastcol = false;
+            $rowcellindex = 1;
             foreach ($question->cols as $col) {
                 if (!$showfeedback && $rowcellindex == ($nrcols - 1)) {
                     $lastcol = true;
@@ -95,7 +91,6 @@ class renderer extends qtype_with_combined_feedback_renderer {
 
                 $cellcontext = [];
                 $cellcontext['cellname'] = $cellname;
-                $cellcontext['cellclass'] = 'c' . $rowcellindex++;
                 $cellcontext['ischecked'] = $ischecked;
                 $cellcontext['colid'] = $col->id;
                 $cellcontext['lastcol'] = $lastcol;
@@ -105,6 +100,7 @@ class renderer extends qtype_with_combined_feedback_renderer {
                     $cellcontext['feedbackimage'] = $this->feedback_image($weight);
                 }
                 $rowcontext['cells'][] = $cellcontext;
+                $rowcellindex++;
             }
             if ($showfeedback) {
                 // feedback for the row in the final column
@@ -112,7 +108,6 @@ class renderer extends qtype_with_combined_feedback_renderer {
                 $feedback = $row->feedback['text'];
                 $feedback = strip_tags($feedback) ? format_text($feedback) : '';
                 $rowcontext['feedback'] = $this->feedback_image($rowgrade) . $feedback;
-                $rowcontext['feedbackcellclass'] = 'c' . $rowcellindex;
             }
             if ($currentrow == $nrrows) {
                 $rowcontext['lastrow'] = true;
@@ -124,9 +119,8 @@ class renderer extends qtype_with_combined_feedback_renderer {
         return $this->render_from_template('qtype_matrix/question', $context);
     }
 
-    private function headercontext($roworcol, int $index, bool $lastcol):array {
+    private function headercontext($roworcol, bool $lastcol):array {
         $headercontext = [];
-        $headercontext['cellclass'] = 'c'.$index;
         $headercontext['lastcol'] = $lastcol;
         $headercontext['shorttext'] = format_text($roworcol->shorttext);
         $description = $roworcol->description['text'];

@@ -18,13 +18,11 @@
             {
                 "shorttext": "Short text of the answer",
                 "description": "Longer description for the answer",
-                "cellclass": "c1",
                 "lastcol": false
             },
             {
                 "shorttext": "Short text of the second answer",
                 "description": "Longer description for the second answer",
-                "cellclass": "c2",
                 "lastcol": true
             }
         ],
@@ -33,20 +31,17 @@
                 "header": {
                     "shorttext": "Short text for the first row item",
                     "description": "Longer description for the first row item",
-                    "cellclass": "c0",
                     "lastrow": false
                 },
                 "cells": [
                     {
                         "cellname": "q88:1_cell265",
-                        "cellclass": "c1",
                         "ischecked": true,
                         "colid": 123,
                         "lastcol": false
                     },
                     {
                         "cellname": "q88:1_cell266",
-                        "cellclass": "c2",
                         "ischecked": false,
                         "colid": 123,
                         "lastcol": true
@@ -57,20 +52,17 @@
                 "header": {
                     "shorttext": "Short text for the second row item",
                     "description": "Longer description for the second row item",
-                    "cellclass": "c0",
                     "lastrow": true
                 },
                 "cells": [
                     {
                         "cellname": "q88:1_cell265",
-                        "cellclass": "c1",
                         "ischecked": true,
                         "colid": 123,
                         "lastcol": false
                     },
                     {
                         "cellname": "q88:1_cell266",
-                        "cellclass": "c2",
                         "ischecked": false,
                         "colid": 123,
                         "lastcol": true
@@ -89,9 +81,9 @@ Expired question: This can happen in preview mode.
 <table class="matrix{{#usedndui}} uses_dndui{{/usedndui}}">
     <thead>
         <tr>
-            <td class="header c0"></td>
+            <td class="header"></td>
 {{#answerheaders}}
-            <th class="header {{ cellclass }}{{#lastcol}} lastcol{{/lastcol}}" scope="col">
+            <th class="header {{#lastcol}} lastcol{{/lastcol}}" scope="col">
                 <span class="title">{{{ shorttext }}}</span>
 {{#description}}
                 <span class="description">{{{ description }}}</span>
@@ -99,7 +91,7 @@ Expired question: This can happen in preview mode.
             </th>
 {{/answerheaders}}
 {{#showfeedback}}
-            <td class="header {{ feedbackcellclass }} lastcol"></td>
+            <td class="header lastcol"></td>
 {{/showfeedback}}
         </tr>
     </thead>
@@ -107,7 +99,7 @@ Expired question: This can happen in preview mode.
 {{#rows}}
     <tr{{#lastrow}} class="lastrow"{{/lastrow}}>
 {{#header}}
-        <td class="cell {{ cellclass }}">
+        <td class="cell rowheader">
             <span class="title">{{{ shorttext }}}</span>
 {{#description}}
             <span class="description">{{{ description }}}</span>
@@ -115,7 +107,7 @@ Expired question: This can happen in preview mode.
         </td>
 {{/header}}
 {{#cells}}
-        <td class="cell {{ cellclass }}{{#lastcol}} lastcol{{/lastcol}}">
+        <td class="cell{{#lastcol}} lastcol{{/lastcol}}">
 {{#multiple}}
             <input type="checkbox" name="{{ cellname }}" value="{{ colid }}"{{#isreadonly}} disabled="disabled"{{/isreadonly}}{{#ischecked}} checked="checked"{{/ischecked}}>
 {{/multiple}}
@@ -128,7 +120,7 @@ Expired question: This can happen in preview mode.
         </td>
 {{/cells}}
 {{#feedback}}
-        <td class="cell {{ feedbackcellclass }} lastcol">{{{ feedback }}}</td>
+        <td class="cell lastcol">{{{ feedback }}}</td>
 {{/feedback}}
     </tr>
 {{/rows}}

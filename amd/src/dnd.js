@@ -68,7 +68,7 @@ export const init = () => {
         }
         var $baskets = $question.find("th:has('span.title')"); // Table header cells, i.e. categories
         var $receptacles = $matrix.find('.cell:has("input")'); // All cells with a checkbox or a radio button
-        var $items = $question.find('.cell.c0'); // First column, i.e. items
+        var $items = $question.find('.cell.rowheader'); // First column, i.e. items
         var ismultiple = !!$matrix.find('input[type=checkbox]').length; // Multiple choice allowed?
 
         $question.addClass('clearfix').addClass(dnduistr); // To make sure we only only for activated dndui
