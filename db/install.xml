@@ -86,6 +86,9 @@
                 <KEY NAME="colidfk" TYPE="foreign" FIELDS="colid" REFTABLE="qtype_matrix_cols" REFFIELDS="id"
                      COMMENT="fk to qtype_matrix_cols" PREVIOUS="rowidfk"/>
             </KEYS>
+            <INDEXES>
+                <INDEX NAME="rowcolunique" UNIQUE="true" FIELDS="rowid, colid" COMMENT="A row and column must only have one weight attached"/>
+            </INDEXES>
         </TABLE>
     </TABLES>
 </XMLDB>

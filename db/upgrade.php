@@ -98,5 +98,17 @@ function xmldb_qtype_matrix_upgrade(int $oldversion): bool {
         upgrade_plugin_savepoint(true, 2025093001, 'qtype', 'matrix');
 
     }
+    if ($oldversion < 2025093003) {
+        // A weight for a row and column should only be set once
+        // Otherwise it would be somehow non-deterministic when an answer is correct or not
+        $table = new xmldb_table('qtype_matrix_weights');
+        $uniquerowcolindex = new xmldb_index('qtypmatrweig_rowcol_uix', XMLDB_INDEX_UNIQUE, ['rowid', 'colid']);
+        if (!$dbman->index_exists($table, $uniquerowcolindex)) {
+            $dbman->add_index($table, $uniquerowcolindex);
+        }
+        upgrade_plugin_savepoint(true, 2025093003, 'qtype', 'matrix');
+
+    }
+
     return true;
 }
