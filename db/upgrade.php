@@ -96,7 +96,16 @@ function xmldb_qtype_matrix_upgrade(int $oldversion): bool {
             $dbman->drop_field($table, $rendererfield);
         }
         upgrade_plugin_savepoint(true, 2025093001, 'qtype', 'matrix');
-
+    }
+    if ($oldversion < 2025093003) {
+        // Due to a bug, useless weight records were created when restoring duplicate matrix questions
+        // We cleanup this clutter here
+        $params = [
+            'rowid' => 0,
+            'colid' => 0
+        ];
+        $DB->delete_records('qtype_matrix_weights', $params);
+        upgrade_plugin_savepoint(true, 2025093003, 'qtype', 'matrix');
     }
     return true;
 }
