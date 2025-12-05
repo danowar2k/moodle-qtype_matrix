@@ -17,6 +17,7 @@
 defined('MOODLE_INTERNAL') || die();
 
 use qtype_matrix\local\question_cleaner;
+use qtype_matrix\local\question_matrix_store;
 
 global $CFG;
 require_once($CFG->dirroot . '/question/engine/bank.php');
@@ -54,25 +55,33 @@ class restore_qtype_matrix_plugin extends restore_qtype_plugin {
     public function process_matrix($data): void {
         global $DB;
         $data = (object) $data;
-        $oldid = $data->id;
+        $oldmatrixid = $data->id;
 
         // Todo: check import of version moodle1 data.
 
         if ($this->is_question_created()) {
+            // If a new question record exists, we have to adapt the backup data to that new question
             $qtypeobj = question_bank::get_qtype($this->pluginname);
             $data->{$qtypeobj->questionid_column_name()} = $this->get_new_parentid('question');
             $extrafields = $qtypeobj->extra_question_fields();
             $extrafieldstable = array_shift($extrafields);
-            $newitemid = $DB->insert_record($extrafieldstable, $data);
-            $this->set_mapping('matrix', $oldid, $newitemid);
+            $newmatrixid = $DB->insert_record($extrafieldstable, $data);
+            $this->set_mapping('matrix', $oldmatrixid, $newmatrixid);
         }
         else {
-            $this->set_mapping('matrix', $oldid, null);
+            $existingquestionid = $this->get_new_parentid('question');
+            $store = new question_matrix_store();
+            $existingmatrix = $store->get_matrix_by_question_id($existingquestionid);
+            if ($existingmatrix) {
+                $this->set_mapping('matrix', $oldmatrixid, $existingmatrix->id);
+            } else {
+                throw new restore_step_exception('error_qtype_matrix_missing_matrix_record');
+            }
         }
     }
 
     /**
-     * Detect if the question is created or mapped
+     * Detect if a new question record was created
      *
      * @return bool
      */
@@ -88,36 +97,7 @@ class restore_qtype_matrix_plugin extends restore_qtype_plugin {
      * @throws dml_exception
      */
     public function process_col($data): void {
-        global $DB;
-        $data = (object) $data;
-        $oldid = $data->id;
-
-        $oldmatrixid = $this->get_old_parentid('matrix');
-        $newmatrixid = $this->get_new_parentid('matrix');
-        if (!$newmatrixid) {
-            return;
-        }
-
-        if ($this->is_question_created()) {
-            $data->matrixid = $newmatrixid;
-            $newitemid = $DB->insert_record('qtype_matrix_cols', $data);
-        } else {
-            $originalrecords = $DB->get_records('qtype_matrix_cols', ['matrixid' => $newmatrixid]);
-            foreach ($originalrecords as $record) {
-                if ($data->shorttext == $record->shorttext) { // Todo: this looks dirty to me!
-                    $newitemid = $record->id;
-                }
-            }
-        }
-        if (!isset($newitemid)) {
-            $info = new stdClass();
-            $info->filequestionid = $oldmatrixid;
-            $info->dbquestionid = $newmatrixid;
-            $info->answer = $data->shorttext;
-            throw new restore_step_exception('error_question_answers_missing_in_db', $info);
-        } else {
-            $this->set_mapping('col', $oldid, $newitemid);
-        }
+        $this->process_row_or_col($data, false);
     }
 
     /**
@@ -128,35 +108,58 @@ class restore_qtype_matrix_plugin extends restore_qtype_plugin {
      * @throws dml_exception
      */
     public function process_row($data): void {
-        global $DB;
-        $data = (object) $data;
-        $oldid = $data->id;
+        $this->process_row_or_col($data, true);
+    }
 
-        $oldmatrixid = $this->get_old_parentid('matrix');
+    /**
+     * Process dimensional records.
+     * @param $data
+     * @param bool $isrow
+     * @return void
+     * @throws dml_exception
+     * @throws restore_step_exception
+     */
+    private function process_row_or_col($data, bool $isrow) {
+        global $DB;
+        $dim = $isrow ? 'row' : 'col';
+        $dimtable = 'qtype_matrix_'.$dim.'s';
+
+        $data = (object) $data;
+        $olddimid = $data->id;
+
         $newmatrixid = $this->get_new_parentid('matrix');
-        if (!$newmatrixid) {
-            return;
-        }
 
         if ($this->is_question_created()) {
             $data->matrixid = $newmatrixid;
-            $newitemid = $DB->insert_record('qtype_matrix_rows', $data);
+            $newdimid = $DB->insert_record($dimtable, $data);
         } else {
-            $originalrecords = $DB->get_records('qtype_matrix_rows', ['matrixid' => $newmatrixid]);
-            foreach ($originalrecords as $record) {
-                if ($data->shorttext == $record->shorttext) { // Todo: this looks dirty to me!
-                    $newitemid = $record->id;
+            // Can't use the dim id here because a different version of the question could have the identical hash
+            // But the new matrix id here is always the id of an existing matrix found earlier
+            // TODO: This is still problematic because somehow each item could have the same shorttext and description (even if that is nonsensical)
+            // TODO: Maybe the combination of matrixid and shorttext should be unique?
+            $params = [
+                'matrixid' => $newmatrixid,
+            ];
+            $existingdims = $DB->get_records($dimtable, $params);
+            foreach ($existingdims as $existingdim) {
+                if (
+                    $existingdim->shorttext != $data->shorttext
+                    || $existingdim->description != $data->description
+                ) {
+                    continue;
                 }
+                if ($isrow && $existingdim->feedback != $data->feedback) {
+                    continue;
+                }
+                $matchingdim = $existingdim;
+                break;
             }
+            $newdimid = $matchingdim->id ?? 0;
         }
-        if (!$newitemid) {
-            $info = new stdClass();
-            $info->filequestionid = $oldmatrixid;
-            $info->dbquestionid = $newmatrixid;
-            $info->answer = $data->shorttext;
-            throw new restore_step_exception('error_question_answers_missing_in_db', $info);
+        if ($newdimid) {
+            $this->set_mapping($dim, $olddimid, $newdimid);
         } else {
-            $this->set_mapping('row', $oldid, $newitemid);
+            throw new restore_step_exception('error_qtype_matrix_missing_'.$dim.'_record');
         }
     }
 
@@ -170,13 +173,33 @@ class restore_qtype_matrix_plugin extends restore_qtype_plugin {
     public function process_weight($data): void {
         global $DB;
         $data = (object) $data;
-        $oldid = $data->id;
+        $oldweightid = $data->id;
 
-        $key = $data->colid . 'x' . $data->rowid;
-        $data->colid = $this->get_mappingid('col', $data->colid);
-        $data->rowid = $this->get_mappingid('row', $data->rowid);
-        $newitemid = $DB->insert_record('qtype_matrix_weights', $data);
-        $this->set_mapping('weight' . $key, $oldid, $newitemid);
+        if ($this->is_question_created()) {
+            $data->colid = $this->get_mappingid('col', $data->colid);
+            $data->rowid = $this->get_mappingid('row', $data->rowid);
+            $newitemid = $DB->insert_record('qtype_matrix_weights', $data);
+        } else {
+            $existingcolid = $this->get_mappingid('col', $data->colid);
+            $existingrowid = $this->get_mappingid('row', $data->rowid);
+            $newquestionid = $this->get_new_parentid('question');
+            if ($existingcolid && $existingrowid && $newquestionid) {
+                $store = new question_matrix_store();
+                $weights = $store->get_matrix_weights_by_question_id($newquestionid);
+                foreach ($weights as $weight) {
+                    if ($existingcolid == $weight->colid && $existingrowid == $weight->rowid) {
+                        $existingweight = $weight;
+                        break;
+                    }
+                }
+            }
+            $newitemid = $existingweight->id ?? 0;
+        }
+        if ($newitemid) {
+            $this->set_mapping('weight', $oldweightid, $newitemid);
+        } else {
+            throw new restore_step_exception('error_qtype_matrix_missing_weight_record');
+        }
     }
 
     /**
@@ -208,14 +231,19 @@ class restore_qtype_matrix_plugin extends restore_qtype_plugin {
                 $recodedresponse['_order'] = $this->recode_choice_order($responseval);
             } else if (substr($responsekey, 0, 4) == 'cell') {
                 $responsekeynocell = substr($responsekey, 4);
+                // Example: cellROWID_COLID for multiple, cellROWID for single
                 $responsekeyids = explode('_', $responsekeynocell);
                 $newrowid = $this->get_mappingid('row', $responsekeyids[0]);
-                $newcolid = $this->get_mappingid('col', $responseval) ?? false;
+                // TODO: This seems broken. $responseval is either 'on' or a oldcolid
+                // If 'on' This is 0
+                $newcolid = $this->get_mappingid('col', $responseval) ?? 0;
                 if (count($responsekeyids) == 1) {
                     $recodedresponse['cell' . $newrowid] = $newcolid;
                 } else if (count($responsekeyids) == 2) {
+                    // TODO: See above, this is the multiple case where $newcolid is 0, so it would be cellOLDROWID_0 = 0
                     $recodedresponse['cell' . $newrowid . '_' . $newcolid] = $newcolid;
                 } else {
+                    // Fallback, probably never happens
                     $recodedresponse[$responsekey] = $responseval;
                 }
             } else {
@@ -228,14 +256,17 @@ class restore_qtype_matrix_plugin extends restore_qtype_plugin {
     /**
      * Recode the choice order as stored in the response.
      *
-     * @param string $order the original order.
+     * @param string $oldroworder the original order.
      * @return string the recoded order.
      */
-    protected function recode_choice_order(string $order): string {
+    protected function recode_choice_order(string $oldroworder): string {
         $neworder = [];
-        foreach (explode(',', $order) as $id) {
-            if ($newid = $this->get_mappingid('row', $id)) {
-                $neworder[] = $newid;
+        foreach (explode(',', $oldroworder) as $oldrowid) {
+            $newrowid = $this->get_mappingid('row', $oldrowid);
+            if ($newrowid) {
+                $neworder[] = $newrowid;
+            } else {
+                throw new restore_step_exception('error_qtype_matrix_missing_attempt_order_id');
             }
         }
         return implode(',', $neworder);
@@ -286,7 +317,7 @@ class restore_qtype_matrix_plugin extends restore_qtype_plugin {
                 $rows = [];
                 foreach ($matrix['rows']['row'] as $row) {
                     $description = $row['description'] ?? '';
-
+                    // FIXME: Why is this maybe necessary?
                     $row['matrixid'] = $matrix['id'];
                     $row['description'] = [
                         'text' => $description,
