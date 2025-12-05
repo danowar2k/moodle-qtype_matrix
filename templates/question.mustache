@@ -84,9 +84,9 @@ Expired question: This can happen in preview mode.
             <td class="header"></td>
 {{#answerheaders}}
             <th class="header {{#lastcol}} lastcol{{/lastcol}}" scope="col">
-                <span class="title">{{{ shorttext }}}</span>
+                <span class="title"{{#description}} aria-details="{{ descriptionid }}"{{/description}}>{{{ shorttext }}}</span>
 {{#description}}
-                <span class="description">{{{ description }}}</span>
+                <span id="{{ descriptionid }}" class="description">{{{ description }}}</span>
 {{/description}}
             </th>
 {{/answerheaders}}
@@ -97,22 +97,23 @@ Expired question: This can happen in preview mode.
     </thead>
     <tbody>
 {{#rows}}
-    <tr{{#lastrow}} class="lastrow"{{/lastrow}}>
+    <tr role="group"{{#lastrow}} class="lastrow"{{/lastrow}}>
 {{#header}}
-        <td class="cell rowheader">
-            <span class="title">{{{ shorttext }}}</span>
+        <th class="cell rowheader" scope="row">
+            <span class="title"{{#description}} aria-details="{{ descriptionid }}"{{/description}}>{{{ shorttext }}}</span>
 {{#description}}
-            <span class="description">{{{ description }}}</span>
+            <span id="{{ descriptionid }}" class="description">{{{ description }}}</span>
 {{/description}}
-        </td>
+        </th>
 {{/header}}
 {{#cells}}
         <td class="cell{{#lastcol}} lastcol{{/lastcol}}">
 {{#multiple}}
-            <input type="checkbox" name="{{ cellname }}" value="{{ colid }}"{{#isreadonly}} disabled="disabled"{{/isreadonly}}{{#ischecked}} checked="checked"{{/ischecked}}>
+            <input type="checkbox" name="{{ cellname }}" value="{{ colid }}"{{#isreadonly}} disabled="disabled"{{/isreadonly}}{{#ischecked}} checked="checked"{{/ischecked}} aria-label="{{{ arialabel }}}">
+
 {{/multiple}}
 {{^multiple}}
-            <input type="radio" name="{{ cellname }}" value="{{ colid }}"{{#isreadonly}} disabled="disabled"{{/isreadonly}}{{#ischecked}} checked="checked"{{/ischecked}}>
+            <input type="radio" name="{{ cellname }}" value="{{ colid }}"{{#isreadonly}} disabled="disabled"{{/isreadonly}}{{#ischecked}} checked="checked"{{/ischecked}} aria-label="{{{ arialabel }}}">
 {{/multiple}}
 {{#feedbackimage}}
             {{{ feedbackimage }}}

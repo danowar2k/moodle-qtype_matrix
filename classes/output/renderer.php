@@ -18,6 +18,7 @@ namespace qtype_matrix\output;
 
 use qtype_matrix\local\setting;
 use dml_exception;
+use html_writer;
 use qtype_with_combined_feedback_renderer;
 use question_attempt;
 use question_display_options;
@@ -94,6 +95,7 @@ class renderer extends qtype_with_combined_feedback_renderer {
                 $cellcontext['ischecked'] = $ischecked;
                 $cellcontext['colid'] = $col->id;
                 $cellcontext['lastcol'] = $lastcol;
+                $cellcontext['arialabel'] = $row->shorttext." : ".$col->shorttext;
 
                 $weight = $question->weight($row, $col);
                 if ($showfeedback && ($ischecked || question_state::graded_state_for_fraction($weight)->is_correct())) {
@@ -121,6 +123,7 @@ class renderer extends qtype_with_combined_feedback_renderer {
 
     private function headercontext($roworcol, bool $lastcol):array {
         $headercontext = [];
+        $headercontext['descriptionid'] = html_writer::random_id();
         $headercontext['lastcol'] = $lastcol;
         $headercontext['shorttext'] = format_text($roworcol->shorttext);
         $description = $roworcol->description['text'];
