@@ -347,6 +347,33 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
     }
 
     /**
+     * During regrading a quiz attempt that perhaps always uses the latest version,
+     * it may happen that a quiz question received a new version.
+     * Moodle checks if the new question version is sufficiently similar to the old version
+     * that regrades are possible (which the questiontype decides).
+     * If it is allowed, the attempt data must be adapted to the new question version,
+     * which this function does.
+     *
+     * @param question_attempt_step $oldstep the first step of a {@see question_attempt} at $oldquestion.
+     * @param qtype_matrix_question $oldquestion the previous version of the question, which $oldstate comes from.
+     * @return array the submit data which can be passed to {@see apply_attempt_state} to start
+     *     an attempt at this version of this question, corresponding to the attempt at the old question.
+     * @throws coding_exception if this can't be done.
+     */
+    public function update_attempt_state_data_for_new_version(
+        question_attempt_step $oldstep, question_definition $oldquestion) {
+        $newattemptdata = parent::update_attempt_state_data_for_new_version($oldstep, $oldquestion);
+        // Map the possibly shuffled old rows to the new question version's rows
+        $oldroworder = explode(',', $newattemptdata['_order']);
+        $oldnewrowmapping = array_combine(array_keys($oldquestion->rows), array_keys($this->rows));
+        $newroworder = [];
+        foreach ($oldroworder as $oldrowid) {
+            $newroworder[] = $oldnewrowmapping[$oldrowid];
+        }
+        $newattemptdata['_order'] = implode(',', $newroworder);
+        return $newattemptdata;
+    }
+    /**
      * Work out a final grade for this attempt, taking into account all the
      * tries the student made.
      *
