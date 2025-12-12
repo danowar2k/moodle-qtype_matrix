@@ -109,11 +109,11 @@ Expired question: This can happen in preview mode.
 {{#cells}}
         <td class="cell{{#lastcol}} lastcol{{/lastcol}}">
 {{#multiple}}
-            <input type="checkbox" name="{{ cellname }}" value="{{ colid }}"{{#isreadonly}} disabled="disabled"{{/isreadonly}}{{#ischecked}} checked="checked"{{/ischecked}} aria-label="{{{ arialabel }}}">
+            <input id="{{{ arialabel }}}" type="checkbox" name="{{ cellname }}" value="{{ colid }}"{{#isreadonly}} disabled="disabled"{{/isreadonly}}{{#ischecked}} checked="checked"{{/ischecked}} aria-label="{{{ arialabel }}}">
 
 {{/multiple}}
 {{^multiple}}
-            <input type="radio" name="{{ cellname }}" value="{{ colid }}"{{#isreadonly}} disabled="disabled"{{/isreadonly}}{{#ischecked}} checked="checked"{{/ischecked}} aria-label="{{{ arialabel }}}">
+            <input id="{{{ arialabel }}}" type="radio" name="{{ cellname }}" value="{{ colid }}"{{#isreadonly}} disabled="disabled"{{/isreadonly}}{{#ischecked}} checked="checked"{{/ischecked}} aria-label="{{{ arialabel }}}">
 {{/multiple}}
 {{#feedbackimage}}
             {{{ feedbackimage }}}
