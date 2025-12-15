@@ -141,9 +141,6 @@ class qtype_matrix_test_helper extends question_test_helper {
         $form->usedndui = $question->usedndui;
         $form->shuffleanswers = $question->shuffleanswers;
 
-        $form->rowid = [];
-        $form->colid = [];
-
         foreach ($question->rows as $index => $row) {
             $form->rows_shorttext = $form->rows_shorttext ?? [];
             $form->rows_shorttext[$index] = $row->shorttext;
@@ -153,7 +150,6 @@ class qtype_matrix_test_helper extends question_test_helper {
             $form->rows_feedback = $form->rows_feedback ?? [];
             $form->rows_feedback[$index]['format'] = FORMAT_HTML;
             $form->rows_feedback[$index]['text'] = $row->feedback;
-            $form->rowid[$index] = '';
         }
         foreach ($question->cols as $index => $col) {
             $form->cols_shorttext = $form->cols_shorttext ?? [];
@@ -161,7 +157,6 @@ class qtype_matrix_test_helper extends question_test_helper {
             $form->cols_description = $form->cols_description ?? [];
             $form->cols_description[$index]['format'] = FORMAT_HTML;
             $form->cols_description[$index]['text'] = $col->description;
-            $form->colid[$index] = '';
         }
         foreach ($question->rows as $ri => $row) {
             foreach ($question->cols as $ci => $col) {

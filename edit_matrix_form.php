@@ -401,21 +401,17 @@ class qtype_matrix_edit_form extends question_edit_form {
             $question->rows_description = [];
             $question->rows_feedback = [];
 
-            $question->rowid = [];
             foreach ($options->rows as $row) {
                 $question->rows_shorttext[] = $row->shorttext;
                 $question->rows_description[] = $row->description;
                 $question->rows_feedback[] = $row->feedback;
-                $question->rowid[] = $row->id;
             }
 
             $question->cols_shorttext = [];
             $question->cols_description = [];
-            $question->colid = [];
             foreach ($options->cols as $col) {
                 $question->cols_shorttext[] = $col->shorttext;
                 $question->cols_description[] = $col->description;
-                $question->colid[] = $col->id;
             }
 
             $rowindex = 0;
