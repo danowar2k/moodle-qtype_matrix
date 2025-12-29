@@ -554,16 +554,6 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
     }
 
     /**
-     * Returns the name field name for input cells in the questiondisplay.
-     * The column parameter is ignored for now since we don't use multiple answers.
-     * @param int $key
-     * @return string
-     */
-    public function field($key) {
-        return 'cell' . $key;
-    }
-
-    /**
      * Categorise the student's response according to the categories defined by get_possible_responses.
      * @param array $response a response, as might be passed to  grade_response().
      * @return array subpartid => question_classified_response objects.
@@ -633,9 +623,9 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
         $selectedcolumns = [];
         foreach ($this->order as $rowid) {
             foreach ($this->cols as $colid => $col) {
-                $field = $this->multiple ? $this->key($rowid, $colid) : $this->field($rowid);
-                if (property_exists((object) $response, $field) && $response[$field]) {
-                    $selectedcolumns[$this->multiple ? $field : $rowid] = $this->multiple ? $colid : $response[$field];
+                $key = $this->key($rowid, $colid);
+                if (property_exists((object) $response, $key) && $response[$key]) {
+                    $selectedcolumns[$this->multiple ? $key : $rowid] = $this->multiple ? $colid : $response[$key];
                 }
             }
         }
