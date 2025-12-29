@@ -104,12 +104,26 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
 
     /**
      *
-     * @param int $rowid
-     * @param int $colid
+     * @param int $rowid The row id to generate the key for
+     * @param int $colid The col id to generate the key for
      * @return string
      */
     public function key(int $rowid, int $colid): string {
-        return qtype_matrix_grading::cell_name($rowid, $colid, $this->multiple);
+        return self::form_cell_name($rowid, $colid, $this->multiple);
+    }
+
+    /**
+     * Returns a cell name.
+     * Should be a valid php and html identifier
+     *
+     * @param int  $row      row number
+     * @param int  $col      col number
+     * @param bool $multiple one answer per row or several
+     *
+     * @return string
+     */
+    public static function form_cell_name(int $row, int $col, bool $multiple): string {
+        return $multiple ? "cell{$row}_$col" : "cell$row";
     }
 
     /**

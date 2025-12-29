@@ -17,18 +17,19 @@
 use qtype_matrix\local\grading\difference;
 use qtype_matrix\local\lang;
 use qtype_matrix\local\matrix_form_builder;
-use qtype_matrix\local\qtype_matrix_grading;
+use qtype_matrix\local\question_cleaner;
 use qtype_matrix\local\setting;
 
 defined('MOODLE_INTERNAL') || die;
 
-use qtype_matrix\local\question_cleaner;
+global $CFG;
 
 /**
  * The question type class for the matrix question type.
  *
  */
-require_once($CFG->dirroot . '/question/type/edit_question_form.php');
+require_once $CFG->dirroot . '/question/type/edit_question_form.php';
+require_once $CFG->dirroot . '/question/type/matrix/question.php';
 
 /**
  * matrix editing form definition. For information about the Moodle forms library,
@@ -204,7 +205,7 @@ class qtype_matrix_edit_form extends question_edit_form {
 
             for ($colindex = 0; $colindex < $colscount; $colindex++) {
                 $matrix[] = $builder->create_static('<td>');
-                $cellname = qtype_matrix_grading::cell_name($rowindex, $colindex, $multiple);
+                $cellname = qtype_matrix_question::form_cell_name($rowindex, $colindex, $multiple);
                 if ($multiple) {
                     $cellcontent = $this->_form->createElement('checkbox', $cellname, 'label');
                 } else {
@@ -421,8 +422,8 @@ class qtype_matrix_edit_form extends question_edit_form {
             foreach ($options->rows as $row) {
                 $colindex = 0;
                 foreach ($options->cols as $col) {
-                    $cellnamemultipleanswers = qtype_matrix_grading::cell_name($rowindex, $colindex, true);
-                    $cellnamesingleanswer = qtype_matrix_grading::cell_name($rowindex, $colindex, false);
+                    $cellnamemultipleanswers = qtype_matrix_question::form_cell_name($rowindex, $colindex, true);
+                    $cellnamesingleanswer = qtype_matrix_question::form_cell_name($rowindex, $colindex, false);
 
                     $weight = $options->weights[$row->id][$col->id];
                     // Todo: check security impact we access and set direct on an object, could be bad.

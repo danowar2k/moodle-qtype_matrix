@@ -18,6 +18,7 @@ namespace qtype_matrix;
 
 use qtype_matrix\local\question_cleaner;
 use qtype_matrix\local\qtype_matrix_grading;
+use qtype_matrix_question;
 use qtype_matrix_test_helper;
 use qtype_matrix;
 use advanced_testcase;
@@ -31,6 +32,7 @@ defined('MOODLE_INTERNAL') || die();
 global $CFG;
 require_once $CFG->dirroot . '/question/engine/tests/helpers.php';
 require_once $CFG->dirroot . '/question/format/xml/format.php';
+require_once $CFG->dirroot . '/question/type/matrix/question.php';
 require_once $CFG->dirroot . '/question/type/matrix/questiontype.php';
 require_once $CFG->dirroot . '/question/type/matrix/tests/helper.php';
 
@@ -541,15 +543,14 @@ class qtype_matrix_test extends advanced_testcase {
     }
 
     /**
-     * @covers ::get_expected_data
      * @return void
      */
-    public function test_cell_name(): void {
-        $id = qtype_matrix::default_grading()->cell_name(0, 0, true);
+    public function test_cell_name():void {
+        $id = qtype_matrix_question::form_cell_name(0, 0, true);
         $match = preg_match('/[a-zA-Z_][a-zA-Z0-9_]*/', $id);
         $this->assertSame(1, $match);
 
-        $id = qtype_matrix::default_grading()->cell_name(0, 0, false);
+        $id = qtype_matrix_question::form_cell_name(0, 0, false);
         $match = preg_match('/[a-zA-Z_][a-zA-Z0-9_]*/', $id);
         $this->assertSame(1, $match);
     }

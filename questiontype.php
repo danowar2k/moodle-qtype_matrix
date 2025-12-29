@@ -25,7 +25,9 @@ use qtype_matrix\local\question_matrix_store;
 defined('MOODLE_INTERNAL') || die();
 
 global $CFG;
-require_once($CFG->libdir . '/questionlib.php');
+
+require_once $CFG->libdir . '/questionlib.php';
+require_once $CFG->dirroot . '/question/type/matrix/question.php';
 
 /**
  * The matrix question class
@@ -269,7 +271,7 @@ class qtype_matrix extends question_type {
         foreach ($matrix as $rowindex => $row) {
             foreach ($row as $colindex => $initialvalue) {
                 // Reminder: The cell name only uses rowindex if we're not allowing multiple correct answers
-                $key = qtype_matrix_grading::cell_name($rowindex, $colindex, $frommultiple);
+                $key = qtype_matrix_question::form_cell_name($rowindex, $colindex, $frommultiple);
                 if (isset($fromform->{$key})) {
                     if (!$frommultiple) {
                         // Only one column can be correct, so ensure that we don't continue after we find it
@@ -439,7 +441,7 @@ class qtype_matrix extends question_type {
             foreach ($weightsofrowsxml as $weightsofrowxml) {
                 $colindex = 0;
                 foreach ($weightsofrowxml['#']['weight-of-col'] as $weightofcolxml) {
-                    $key = qtype_matrix_grading::cell_name($rowindex, $colindex, $fromform->multiple);
+                    $key = qtype_matrix_question::form_cell_name($rowindex, $colindex, $fromform->multiple);
                     $fromform->{$key} = floatval($weightofcolxml['#']);
                     $colindex++;
                 }
@@ -451,7 +453,7 @@ class qtype_matrix extends question_type {
                 $colindex = 0;
                 foreach ($weightsofrowxml['#']['weight-of-col'] as $weightofcolxml) {
                     if (floatval($weightofcolxml['#']) != 0) {
-                        $key = qtype_matrix_grading::cell_name($rowindex, $colindex, $fromform->multiple);
+                        $key = qtype_matrix_question::form_cell_name($rowindex, $colindex, $fromform->multiple);
                         $fromform->{$key} = $colindex;
                     }
                     $colindex++;

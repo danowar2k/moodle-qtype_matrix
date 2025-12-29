@@ -81,20 +81,6 @@ abstract class qtype_matrix_grading {
     }
 
     /**
-     * Returns a cell name.
-     * Should be a valid php and html identifier
-     *
-     * @param int  $row      row number
-     * @param int  $col      col number
-     * @param bool $multiple one answer per row or several
-     *
-     * @return string
-     */
-    public static function cell_name(int $row, int $col, bool $multiple): string {
-        return $multiple ? "cell{$row}_$col" : "cell$row";
-    }
-
-    /**
      * Returns the question's grade. By default, it is the average of correct questions.
      *
      * @param qtype_matrix_question $question
