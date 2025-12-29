@@ -152,14 +152,11 @@ class qtype_matrix_edit_form extends question_edit_form {
      * @throws coding_exception
      */
     public function add_matrix(): void {
-        $mform = $this->_form;
         $builder = $this->builder;
 
         $colscount = $this->param_cols();
         $rowscount = $this->param_rows();
 
-        $grademethod = $this->param_grade_method();
-        $grading = qtype_matrix::grading($grademethod);
         $multiple = $this->param_multiple();
 
         $matrix = [];
@@ -192,22 +189,28 @@ class qtype_matrix_edit_form extends question_edit_form {
 
         $matrix[] = $builder->create_static('</tr></thead><tbody>');
 
-        for ($row = 0; $row < $rowscount; $row++) {
+        for ($rowindex = 0; $rowindex < $rowscount; $rowindex++) {
             $matrix[] = $builder->create_static('<tr>');
             $matrix[] = $builder->create_static('<td>');
 
             $matrix[] = $builder->create_static('<div class="input-group">');
 
-            $matrix[] = $builder->create_text("rows_shorttext[$row]", false);
-            $questionpopup = $builder->create_htmlpopup("rows_description[$row]", lang::row_long());
+            $matrix[] = $builder->create_text("rows_shorttext[$rowindex]", false);
+            $questionpopup = $builder->create_htmlpopup("rows_description[$rowindex]", lang::row_long());
             $matrix = array_merge($matrix, $questionpopup);
 
             $matrix[] = $builder->create_static('</div>');
             $matrix[] = $builder->create_static('</td>');
 
-            for ($col = 0; $col < $colscount; $col++) {
+            for ($colindex = 0; $colindex < $colscount; $colindex++) {
                 $matrix[] = $builder->create_static('<td>');
-                $cellcontent = $grading->create_cell_element($mform, $row, $col, $multiple);
+                $cellname = qtype_matrix_grading::cell_name($rowindex, $colindex, $multiple);
+                if ($multiple) {
+                    $cellcontent = $this->_form->createElement('checkbox', $cellname, 'label');
+                } else {
+                    $cellcontent = $this->_form->createElement('radio', $cellname, '', '', $colindex);
+                }
+
                 $cellcontent = $cellcontent ? : $builder->create_static('');
                 $matrix[] = $cellcontent;
                 $matrix[] = $builder->create_static('</td>');
@@ -215,7 +218,7 @@ class qtype_matrix_edit_form extends question_edit_form {
 
             $matrix[] = $builder->create_static('<td class="feedback">');
 
-            $feedbackpopup = $builder->create_htmlpopup("rows_feedback[$row]", lang::row_feedback());
+            $feedbackpopup = $builder->create_htmlpopup("rows_feedback[$rowindex]", lang::row_feedback());
             $matrix = array_merge($matrix, $feedbackpopup);
 
             $matrix[] = $builder->create_static('</td>');
@@ -232,7 +235,7 @@ class qtype_matrix_edit_form extends question_edit_form {
             $builder->register_no_submit_button('add_rows');
         }
         $matrix[] = $builder->create_static('</td>');
-        for ($col = 0; $col < $colscount; $col++) {
+        for ($colindex = 0; $colindex < $colscount; $colindex++) {
             $matrix[] = $builder->create_static('<td>');
             $matrix[] = $builder->create_static('</td>');
         }

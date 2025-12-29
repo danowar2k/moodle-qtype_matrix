@@ -81,24 +81,6 @@ abstract class qtype_matrix_grading {
     }
 
     /**
-     * Create the form element used to define the weight of the cell
-     *
-     * @param MoodleQuickForm $form
-     * @param int             $row      row number
-     * @param int             $col      column number
-     * @param bool            $multiple whether the question allows multiple answers
-     * @return object
-     */
-    public function create_cell_element(MoodleQuickForm $form, int $row, int $col, bool $multiple): object {
-        $cellname = $this->cell_name($row, $col, $multiple);
-        if ($multiple) {
-            return $form->createElement('checkbox', $cellname, 'label');
-        } else {
-            return $form->createElement('radio', $cellname, '', '', $col);
-        }
-    }
-
-    /**
      * Returns a cell name.
      * Should be a valid php and html identifier
      *
