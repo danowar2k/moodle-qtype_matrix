@@ -205,7 +205,7 @@ class qtype_matrix_edit_form extends question_edit_form {
 
             for ($colindex = 0; $colindex < $colscount; $colindex++) {
                 $matrix[] = $builder->create_static('<td>');
-                $cellname = qtype_matrix_question::form_cell_name($rowindex, $colindex, $multiple);
+                $cellname = qtype_matrix_question::old_form_cell_name($rowindex, $colindex, $multiple);
                 if ($multiple) {
                     $cellcontent = $this->_form->createElement('checkbox', $cellname, 'label');
                 } else {
@@ -422,8 +422,8 @@ class qtype_matrix_edit_form extends question_edit_form {
             foreach ($options->rows as $row) {
                 $colindex = 0;
                 foreach ($options->cols as $col) {
-                    $cellnamemultipleanswers = qtype_matrix_question::form_cell_name($rowindex, $colindex, true);
-                    $cellnamesingleanswer = qtype_matrix_question::form_cell_name($rowindex, $colindex, false);
+                    $cellnamemultipleanswers = qtype_matrix_question::old_form_cell_name($rowindex, $colindex, true);
+                    $cellnamesingleanswer = qtype_matrix_question::old_form_cell_name($rowindex, $colindex, false);
 
                     $weight = $options->weights[$row->id][$col->id];
                     // Todo: check security impact we access and set direct on an object, could be bad.

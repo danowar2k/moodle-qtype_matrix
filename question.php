@@ -89,7 +89,7 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
         }
 
         // TODO: This used $responsemultiple to override, check if this still works
-        $key = $this->key($rowid, $colid);
+        $key = $this->oldkey($rowid, $colid);
         $value = $response[$key] ?? false;
         if ($value === false) {
             return false;
@@ -108,12 +108,22 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
      * @param int $colid The col id to generate the key for
      * @return string
      */
-    public function key(int $rowid, int $colid): string {
-        return self::form_cell_name($rowid, $colid, $this->multiple);
+    public function oldkey(int $rowid, int $colid): string {
+        return self::old_form_cell_name($rowid, $colid, $this->multiple);
     }
 
     /**
-     * Returns a cell name.
+     *
+     * @param int $rowid The row id to generate the key for
+     * @param int $colid The col id to generate the key for
+     * @return string
+     */
+    public function newkey(int $rowid, int $colid): string {
+        return self::new_form_cell_name($rowid, $colid, $this->multiple);
+    }
+
+    /**
+     * Returns the old style cell name.
      * Should be a valid php and html identifier
      *
      * @param int  $row      row number
@@ -122,8 +132,26 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
      *
      * @return string
      */
-    public static function form_cell_name(int $row, int $col, bool $multiple): string {
+    public static function old_form_cell_name(int $row, int $col, bool $multiple): string {
         return $multiple ? "cell{$row}_$col" : "cell$row";
+    }
+
+    /**
+     * Returns the new style cell name.
+     * Should be a valid php and html identifier
+     *
+     * @param int  $row      row number
+     * @param int  $col      col number
+     * @param bool $multiple one answer per row or several
+     *
+     * @return string
+     */
+    public static function new_form_cell_name(int $row, int $col, bool $multiple): string {
+        $cellname = 'row'.$row;
+        if ($multiple) {
+            $cellname .= 'col'.$col;
+        }
+        return $cellname;
     }
 
     /**
@@ -371,7 +399,7 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
         }
         $count = 0;
         foreach ($this->rows as $row) {
-            $key = $this->key($row->id, 0);
+            $key = $this->oldkey($row->id, 0);
             if (isset($response[$key])) {
                 $count++;
             }
@@ -443,7 +471,7 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
         } else {
             foreach ($this->rows as $row) {
                 foreach ($this->cols as $col) {
-                    $key = $this->key($row->id, $col->id);
+                    $key = $this->oldkey($row->id, $col->id);
                     if (!empty($response[$key])) {
                         return true;
                     }
@@ -464,7 +492,7 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
         foreach ($this->order ?? array_keys($this->rows) as $rowid) {
             $row = $this->rows[$rowid];
             foreach ($this->cols as $col) {
-                $key = $this->key($row->id, $col->id);
+                $key = $this->oldkey($row->id, $col->id);
                 $value = $response[$key] ?? false;
                 if ($value === $col->id || $value === true) {
                     $result[] = "$row->shorttext: $col->shorttext";
@@ -515,7 +543,7 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
             $row = $this->rows[$rowid];
             foreach ($this->cols as $col) {
                 $weight = $this->weight($row, $col);
-                $key = $this->key($row->id, $col->id);
+                $key = $this->oldkey($row->id, $col->id);
                 if ($weight > 0) {
                     $result[$key] = $this->multiple ? true : $col->id;
                 }
@@ -560,7 +588,7 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
         foreach ($this->order as $rowid) {
             $row = $this->rows[$rowid];
             foreach ($this->cols as $col) {
-                $result[$this->key($row->id, $col->id)] = $this->weight($row, $col);
+                $result[$this->oldkey($row->id, $col->id)] = $this->weight($row, $col);
             }
         }
         return $result;
@@ -636,7 +664,7 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
         $selectedcolumns = [];
         foreach ($this->order as $rowid) {
             foreach ($this->cols as $colid => $col) {
-                $key = $this->key($rowid, $colid);
+                $key = $this->oldkey($rowid, $colid);
                 if (property_exists((object) $response, $key) && $response[$key]) {
                     $selectedcolumns[$this->multiple ? $key : $rowid] = $this->multiple ? $colid : $response[$key];
                 }

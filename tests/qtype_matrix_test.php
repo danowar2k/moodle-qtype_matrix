@@ -18,7 +18,6 @@ namespace qtype_matrix;
 
 use qtype_matrix\local\question_cleaner;
 use qtype_matrix\local\qtype_matrix_grading;
-use qtype_matrix_question;
 use qtype_matrix_test_helper;
 use qtype_matrix;
 use advanced_testcase;
@@ -541,18 +540,4 @@ class qtype_matrix_test extends advanced_testcase {
     public function test_name(): void {
         $this->assertEquals('matrix', $this->qtype->name());
     }
-
-    /**
-     * @return void
-     */
-    public function test_cell_name():void {
-        $id = qtype_matrix_question::form_cell_name(0, 0, true);
-        $match = preg_match('/[a-zA-Z_][a-zA-Z0-9_]*/', $id);
-        $this->assertSame(1, $match);
-
-        $id = qtype_matrix_question::form_cell_name(0, 0, false);
-        $match = preg_match('/[a-zA-Z_][a-zA-Z0-9_]*/', $id);
-        $this->assertSame(1, $match);
-    }
-
 }

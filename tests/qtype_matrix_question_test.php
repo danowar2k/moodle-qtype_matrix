@@ -35,6 +35,7 @@ global $CFG;
 require_once $CFG->dirroot . '/question/engine/tests/helpers.php';
 require_once $CFG->dirroot . '/question/engine/questionattempt.php';
 require_once $CFG->dirroot . '/question/engine/questionattemptstep.php';
+require_once $CFG->dirroot . '/question/type/matrix/question.php';
 require_once $CFG->dirroot . '/question/type/matrix/tests/helper.php';
 
 /**
@@ -80,15 +81,48 @@ class qtype_matrix_question_test extends advanced_testcase {
         $this->assertTrue($question->response($response, $row, $col));
     }
 
-    public function test_key():void {
+    public function test_oldkey():void {
         $question = qtype_matrix_test_helper::make_question('nondefault');
-        $rowid = 1;
-        $colid = 2;
-        $randcolid = rand(3,100);
-        $this->assertEquals('cell1_2', $question->key($rowid, $colid));
+        $this->assertEquals('cell1_2', $question->oldkey(1, 2));
         $question->multiple = false;
-        $this->assertEquals('cell1', $question->key($rowid, $colid));
-        $this->assertEquals('cell1', $question->key($rowid, $randcolid));
+        $this->assertEquals('cell1', $question->oldkey(1, rand(2,100)));
+    }
+
+    public function test_newkey():void {
+        $question = qtype_matrix_test_helper::make_question('nondefault');
+        $this->assertEquals('row1col2', $question->newkey(1, 2));
+        $question->multiple = false;
+        $this->assertEquals('row1', $question->newkey(1, rand(2,100)));
+    }
+
+    /**
+     * @return void
+     */
+    public function test_old_form_cell_name():void {
+        $this->assertEquals('cell0_0',
+            qtype_matrix_question::old_form_cell_name(0, 0, true));
+        $this->assertEquals('cell1_2',
+            qtype_matrix_question::old_form_cell_name(1, 2, true));
+
+        $this->assertEquals('cell1',
+            qtype_matrix_question::old_form_cell_name(1, 2, false));
+        $this->assertEquals('cell355',
+            qtype_matrix_question::old_form_cell_name(355, 123, false));
+    }
+
+    /**
+     * @return void
+     */
+    public function test_new_form_cell_name():void {
+        $this->assertEquals('row0col0',
+            qtype_matrix_question::new_form_cell_name(0, 0, true));
+        $this->assertEquals('row1col2',
+            qtype_matrix_question::new_form_cell_name(1, 2, true));
+
+        $this->assertEquals('row1',
+            qtype_matrix_question::new_form_cell_name(1, 2, false));
+        $this->assertEquals('row355',
+            qtype_matrix_question::new_form_cell_name(355, 123, false));
     }
 
     public function test_answer():void {
@@ -430,7 +464,7 @@ class qtype_matrix_question_test extends advanced_testcase {
         $answer = self::make_correct_answer($question);
         $summary = $question->summarise_response($answer);
         foreach ($question->rows as $row) {
-            $key = $question->key($row->id, 0);
+            $key = $question->oldkey($row->id, 0);
             if (isset($answer[$key])) {
                 $colid = $answer[$key];
                 $this->assertStringContainsString($row->shorttext.': '.$question->cols[$colid]->shorttext, $summary);
@@ -441,7 +475,7 @@ class qtype_matrix_question_test extends advanced_testcase {
         $answer = self::make_incomplete_wrong_answer($question);
         $summary = $question->summarise_response($answer);
         foreach ($question->rows as $row) {
-            $key = $question->key($row->id, 0);
+            $key = $question->oldkey($row->id, 0);
             if (isset($answer[$key])) {
                 $colid = $answer[$key];
                 $this->assertStringContainsString($row->shorttext.': '.$question->cols[$colid]->shorttext, $summary);
@@ -456,7 +490,7 @@ class qtype_matrix_question_test extends advanced_testcase {
         $summary = $question->summarise_response($answer);
         foreach ($question->rows as $row) {
             foreach ($question->cols as $col) {
-                $key = $question->key($row->id, $col->id);
+                $key = $question->oldkey($row->id, $col->id);
                 if (isset($answer[$key])) {
                     $this->assertStringContainsString($row->shorttext.': '.$col->shorttext, $summary);
                 } else {
@@ -829,7 +863,7 @@ class qtype_matrix_question_test extends advanced_testcase {
         foreach ($matrix as $rowindex => $cols) {
             foreach ($cols as $colindex => $colvalue) {
                 if ($colvalue > 0) {
-                    $key = $question->key($rowindex, $colindex);
+                    $key = $question->oldkey($rowindex, $colindex);
                     $answer[$key] = $question->multiple ? true : $colindex;
                 }
             }

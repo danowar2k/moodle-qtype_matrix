@@ -160,7 +160,7 @@ class qtype_matrix_test_helper extends question_test_helper {
         }
         foreach ($question->rows as $ri => $row) {
             foreach ($question->cols as $ci => $col) {
-                $key = $question->key($ri, $ci);
+                $key = $question->oldkey($ri, $ci);
                 if ($question->weights[$ri][$ci]) {
                     if (!$question->multiple) {
                         $form->{$key} = $ci;
