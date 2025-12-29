@@ -67,10 +67,11 @@ class all extends qtype_matrix_grading implements grading {
      * @return float                            The row grade, either 0 or 1
      */
     public function grade_row(qtype_matrix_question $question, $row, array $responses): float {
+        $rowid = $row->id ?? $row;
         // All of a row must be correct to get a point.
-        foreach ($question->cols as $col) {
+        foreach ($question->cols as $colid => $col) {
             $answer = $question->answer($row, $col);
-            $response = $question->response($responses, $row, $col);
+            $response = $question->response($responses, $rowid, $colid);
             if ($answer != $response) {
                 return 0.0;
             }

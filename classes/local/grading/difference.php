@@ -70,19 +70,20 @@ class difference extends qtype_matrix_grading implements grading {
      * @return float                            The row grade, either 0 or 1
      */
     public function grade_row(qtype_matrix_question $question, $row, array $responses): float {
+        $rowid = $row->id ?? $row;
         $ansid = 1;
         $respid = 1;
         $ansbool = false;
         $resbool = false;
         // Foreach through the elements and count the elements to the response and answer.
-        foreach ($question->cols as $col) {
+        foreach ($question->cols as $colid => $col) {
             $answer = $question->answer($row, $col);
             if (!$ansbool && !$answer) {
                 $ansid++;
             } else {
                 $ansbool = true;
             }
-            $response = $question->response($responses, $row, $col);
+            $response = $question->response($responses, $rowid, $colid);
             if (!$resbool && !$response) {
                 $respid++;
             } else {

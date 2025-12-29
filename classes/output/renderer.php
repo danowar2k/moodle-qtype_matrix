@@ -77,7 +77,7 @@ class renderer extends qtype_with_combined_feedback_renderer {
             $rowcolindex = 0;
             foreach ($question->cols as $colid => $col) {
                 $cellname = $qa->get_field_prefix() . $question->oldkey($rowid, $colid);
-                $ischecked = $question->response($response, $row, $col);
+                $ischecked = $question->response($response, $rowid, $colid);
 
                 $cellcontext = [];
                 $cellcontext['cellname'] = $cellname;

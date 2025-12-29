@@ -46,39 +46,35 @@ class qtype_matrix_question_test extends advanced_testcase {
 
     public function test_response():void {
         $question = qtype_matrix_test_helper::make_question('nondefault');
-        $row = new stdClass();
-        $row->id = 1;
-        $col = new stdClass();
-        $col->id = 2;
         $response = [
         ];
-        $this->assertFalse($question->response($response, $row, $col));
+        $this->assertFalse($question->response($response, 1, 2));
         $response = [
             'cell1_2' => 1
         ];
-        $this->assertTrue($question->response($response, $row, $col));
+        $this->assertTrue($question->response($response, 1, 2));
         $response = [
             'cell0_1' => 1,
             'cell1_2' => 1
         ];
-        $this->assertTrue($question->response($response, $row, $col));
+        $this->assertTrue($question->response($response, 1, 2));
         $question->multiple = false;
         $response = [
         ];
-        $this->assertFalse($question->response($response, $row, $col));
+        $this->assertFalse($question->response($response, 1, 2));
         $response = [
             'cell1' => 1
         ];
-        $this->assertFalse($question->response($response, $row, $col));
+        $this->assertFalse($question->response($response, 1, 2));
         $response = [
             'cell1' => 2
         ];
-        $this->assertTrue($question->response($response, $row, $col));
+        $this->assertTrue($question->response($response, 1, 2));
         $response = [
             'cell0' => 2,
             'cell1' => 2
         ];
-        $this->assertTrue($question->response($response, $row, $col));
+        $this->assertTrue($question->response($response, 1, 2));
     }
 
     public function test_oldkey():void {

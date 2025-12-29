@@ -53,14 +53,12 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
      * If the user didn't make an answer at all (no response) the method returns false.
      *
      * @param array $response object containing the raw answer data
-     * @param mixed $row      matrix row, either an id or an object
-     * @param mixed $col      matrix col, either an id or an object
+     * @param int $rowid matrix row id
+     * @param int $colid matrix col id
      *
      * @return boolean True if the cell($row, $col) was checked by the user. False otherwise.
      */
-    public function response(array $response, $row, $col): bool {
-        $rowid = $row->id ?? $row;
-        $colid = $col->id ?? $col;
+    public function response(array $response, int $rowid, int $colid):bool {
         // A student may respond with a question with the multiple answer turned on.
         // Later the teacher may turn that flag off. The result is that the question
         // and response formats won't match.
