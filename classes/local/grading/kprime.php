@@ -82,7 +82,7 @@ class kprime extends qtype_matrix_grading implements grading {
     public function grade_row(qtype_matrix_question $question, $row, array $responses): float {
         $rowid = $row->id ?? $row;
         foreach ($question->cols as $colid => $col) {
-            $answer = $question->answer($row, $col);
+            $answer = $question->answer($rowid, $colid);
             $response = $question->response($responses, $rowid, $colid);
             if ($answer != $response) {
                 return 0.0;

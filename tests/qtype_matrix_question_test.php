@@ -123,16 +123,10 @@ class qtype_matrix_question_test extends advanced_testcase {
 
     public function test_answer():void {
         $question = qtype_matrix_test_helper::make_question('default');
-        $row = new stdClass();
-        $row->id = 1;
-        $col = new stdClass();
-        $col->id = 2;
-        $question->weights[$row->id][$col->id] = 1;
-        $this->assertTrue($question->answer($row, $col));
-        $this->assertTrue($question->answer($row->id, $col->id));
-        $question->weights[$row->id][$col->id] = 0;
-        $this->assertFalse($question->answer($row, $col));
-        $this->assertFalse($question->answer($row->id, $col->id));
+        $question->weights[1][2] = 1;
+        $this->assertTrue($question->answer(1, 2));
+        $question->weights[1][2] = 0;
+        $this->assertFalse($question->answer(1, 2));
     }
 
     public function test_weight():void {

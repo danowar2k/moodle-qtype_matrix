@@ -153,16 +153,14 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
     }
 
     /**
-     * Returns the expected answer for the cell at $row, $col.
+     * Returns the expected answer for the cell at $rowid, $colid.
      *
-     * @param integer|object $row
-     * @param integer|object $col
+     * @param int $rowid
+     * @param int $colid
      *
-     * @return boolean  True if cell($row, $col) is correct, false otherwise.
+     * @return boolean  True if cell($rowid, $colid) is correct, false otherwise.
      */
-    public function answer($row = null, $col = null): bool {
-        $rowid = $row->id ?? $row;
-        $colid = $col->id ?? $col;
+    public function answer(int $rowid, int $colid): bool {
         return $this->weight($rowid, $colid) > 0;
     }
 

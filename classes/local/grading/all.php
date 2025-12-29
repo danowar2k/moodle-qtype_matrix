@@ -70,7 +70,7 @@ class all extends qtype_matrix_grading implements grading {
         $rowid = $row->id ?? $row;
         // All of a row must be correct to get a point.
         foreach ($question->cols as $colid => $col) {
-            $answer = $question->answer($row, $col);
+            $answer = $question->answer($rowid, $colid);
             $response = $question->response($responses, $rowid, $colid);
             if ($answer != $response) {
                 return 0.0;

@@ -77,7 +77,7 @@ class difference extends qtype_matrix_grading implements grading {
         $resbool = false;
         // Foreach through the elements and count the elements to the response and answer.
         foreach ($question->cols as $colid => $col) {
-            $answer = $question->answer($row, $col);
+            $answer = $question->answer($rowid, $colid);
             if (!$ansbool && !$answer) {
                 $ansid++;
             } else {

@@ -84,7 +84,7 @@ class kany extends qtype_matrix_grading implements grading {
         $rowid = $row->id ?? $row;
         $onecorrectanswer = false;
         foreach ($question->cols as $colid => $col) {
-            $answer = $question->answer($row, $col);
+            $answer = $question->answer($rowid, $colid);
             $response = $question->response($responses, $rowid, $colid);
             if (!$answer && $response) {
                 return 0;
