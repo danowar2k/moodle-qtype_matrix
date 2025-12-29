@@ -18,6 +18,7 @@ namespace qtype_matrix\output;
 
 use qtype_matrix\local\lang;
 use qtype_matrix\local\setting;
+use qtype_matrix_question;
 use dml_exception;
 use html_writer;
 use qtype_with_combined_feedback_renderer;
@@ -42,6 +43,7 @@ class renderer extends qtype_with_combined_feedback_renderer {
      * @throws dml_exception
      */
     public function formulation_and_controls(question_attempt $qa, question_display_options $options): string {
+        /** @var qtype_matrix_question $question */
         $question = $qa->get_question();
         $showfeedback = $options->correctness ?? false;
         $context = [];

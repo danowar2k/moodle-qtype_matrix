@@ -89,20 +89,10 @@ class qtype_matrix_question_test extends advanced_testcase {
         $randcolid = rand(3,100);
         $this->assertEquals('cell1_2', $question->key($row, $col));
         $this->assertEquals('cell1_2', $question->key($row->id, $col->id));
-        $this->assertEquals('cell1_2', $question->key($row, $col, true));
-        $this->assertEquals('cell1_2', $question->key($row->id, $col->id, true));
-        $this->assertEquals('cell1', $question->key($row, $col, false));
-        $this->assertEquals('cell1', $question->key($row->id, $col->id, false));
-        $this->assertEquals('cell1', $question->key($row->id, $randcolid, false));
         $question->multiple = false;
         $this->assertEquals('cell1', $question->key($row, $col));
         $this->assertEquals('cell1', $question->key($row->id, $col->id));
         $this->assertEquals('cell1', $question->key($row->id, $randcolid));
-        $this->assertEquals('cell1', $question->key($row, $col, false));
-        $this->assertEquals('cell1', $question->key($row->id, $col->id, false));
-        $this->assertEquals('cell1', $question->key($row->id, $randcolid));
-        $this->assertEquals('cell1_2', $question->key($row, $col, true));
-        $this->assertEquals('cell1_2', $question->key($row->id, $col->id, true));
     }
 
     public function test_answer():void {

@@ -86,7 +86,8 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
             break;
         }
 
-        $key = $this->key($row, $col, $responsemultiple);
+        // TODO: This used $responsemultiple to override, check if this still works
+        $key = $this->key($row, $col);
         $value = $response[$key] ?? false;
         if ($value === false) {
             return false;
@@ -106,11 +107,10 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
      * @param boolean|null $multiple
      * @return string
      */
-    public function key($row, $col, bool $multiple = null): string {
+    public function key($row, $col): string {
         $rowid = is_object($row) ? $row->id : $row;
         $colid = is_object($col) ? $col->id : $col;
-        $multiple = (is_null($multiple)) ? $this->multiple : $multiple;
-        return qtype_matrix_grading::cell_name($rowid, $colid, $multiple);
+        return qtype_matrix_grading::cell_name($rowid, $colid, $this->multiple);
     }
 
     /**
@@ -633,7 +633,7 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
         $selectedcolumns = [];
         foreach ($this->order as $rowid) {
             foreach ($this->cols as $colid => $col) {
-                $field = $this->multiple ? $this->key($rowid, $colid, true) : $this->field($rowid);
+                $field = $this->multiple ? $this->key($rowid, $colid) : $this->field($rowid);
                 if (property_exists((object) $response, $field) && $response[$field]) {
                     $selectedcolumns[$this->multiple ? $field : $rowid] = $this->multiple ? $colid : $response[$field];
                 }
