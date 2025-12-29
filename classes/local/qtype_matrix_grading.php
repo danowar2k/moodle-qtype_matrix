@@ -81,22 +81,13 @@ abstract class qtype_matrix_grading {
     }
 
     /**
-     * Returns the question's grade. By default, it is the average of correct questions.
+     * Returns the question's grade.
      *
      * @param qtype_matrix_question $question
      * @param array                 $answers
      * @return float
      */
-    // FIXME: This should be moved to the all grading and this should remain abstract
-    public function grade_question(qtype_matrix_question $question, array $answers): float {
-        $grades = [];
-        foreach ($question->rows as $rowid => $row) {
-            $grades[] = $this->grade_row($question, $rowid, $answers);
-        }
-        $result = array_sum($grades) / count($grades);
-        $result = min(1, $result);
-        return max(0, $result);
-    }
+    abstract public function grade_question(qtype_matrix_question $question, array $answers):float;
 
     /**
      * Grade a specific row
