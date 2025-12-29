@@ -78,7 +78,7 @@ class qtype_matrix_test_helper extends question_test_helper {
         return $form;
     }
 
-    private function transform_generated_question_to_question_data($question):stdClass {
+    private function transform_generated_question_to_question_data(qtype_matrix_question $question):stdClass {
         $questiondata = new stdClass();
         test_question_maker::initialise_question_data($questiondata);
         $questiondata->name = $question->questiontext;
@@ -122,7 +122,7 @@ class qtype_matrix_test_helper extends question_test_helper {
         return $questiondata;
     }
 
-    private function transform_generated_question_to_form_data($question):stdClass {
+    private function transform_generated_question_to_form_data(qtype_matrix_question $question):stdClass {
         $form = new stdClass();
         $form->name = $question->name;
         $form->questiontext = [];
@@ -252,7 +252,7 @@ class qtype_matrix_test_helper extends question_test_helper {
      * @return \qtype_matrix_question
      * @throws \coding_exception
      */
-    public function init_default_matrix_question(): qtype_matrix_question {
+    public function init_default_matrix_question():qtype_matrix_question {
         question_bank::load_question_definition_classes('matrix');
         $question = new qtype_matrix_question();
         test_question_maker::initialise_a_question($question);
@@ -279,7 +279,7 @@ class qtype_matrix_test_helper extends question_test_helper {
         return $question;
     }
 
-    private function generate_matrix_question_matrix() {
+    private function generate_matrix_question_matrix():stdClass {
         $matrix = (object) [];
         $matrix->rows = [];
         for ($r = 0; $r < 4; $r++) {
@@ -292,7 +292,7 @@ class qtype_matrix_test_helper extends question_test_helper {
         return $matrix;
     }
 
-    private function generate_matrix_row_or_column(int $id, bool $row) {
+    private function generate_matrix_row_or_column(int $id, bool $row):stdClass {
         $roworcolumn = (object) [];
         $roworcolumn->id = $id;
         $roworcolumn->shorttext = ($row ? "Row " : "Column ").$id;
