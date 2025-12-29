@@ -59,6 +59,8 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
      * @return boolean True if the cell($row, $col) was checked by the user. False otherwise.
      */
     public function response(array $response, $row, $col): bool {
+        $rowid = $row->id ?? $row;
+        $colid = $col->id ?? $col;
         // A student may respond with a question with the multiple answer turned on.
         // Later the teacher may turn that flag off. The result is that the question
         // and response formats won't match.
@@ -87,7 +89,7 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
         }
 
         // TODO: This used $responsemultiple to override, check if this still works
-        $key = $this->key($row, $col);
+        $key = $this->key($rowid, $colid);
         $value = $response[$key] ?? false;
         if ($value === false) {
             return false;
@@ -97,19 +99,16 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
             return !empty($value);
         }
 
-        return $value == $col->id;
+        return $value == $colid;
     }
 
     /**
      *
-     * @param mixed        $row
-     * @param mixed        $col
-     * @param boolean|null $multiple
+     * @param int $rowid
+     * @param int $colid
      * @return string
      */
-    public function key($row, $col): string {
-        $rowid = is_object($row) ? $row->id : $row;
-        $colid = is_object($col) ? $col->id : $col;
+    public function key(int $rowid, int $colid): string {
         return qtype_matrix_grading::cell_name($rowid, $colid, $this->multiple);
     }
 
@@ -358,7 +357,7 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
         }
         $count = 0;
         foreach ($this->rows as $row) {
-            $key = $this->key($row, 0);
+            $key = $this->key($row->id, 0);
             if (isset($response[$key])) {
                 $count++;
             }
@@ -430,7 +429,7 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
         } else {
             foreach ($this->rows as $row) {
                 foreach ($this->cols as $col) {
-                    $key = $this->key($row, $col);
+                    $key = $this->key($row->id, $col->id);
                     if (!empty($response[$key])) {
                         return true;
                     }
@@ -451,7 +450,7 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
         foreach ($this->order ?? array_keys($this->rows) as $rowid) {
             $row = $this->rows[$rowid];
             foreach ($this->cols as $col) {
-                $key = $this->key($row, $col);
+                $key = $this->key($row->id, $col->id);
                 $value = $response[$key] ?? false;
                 if ($value === $col->id || $value === true) {
                     $result[] = "$row->shorttext: $col->shorttext";
@@ -502,7 +501,7 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
             $row = $this->rows[$rowid];
             foreach ($this->cols as $col) {
                 $weight = $this->weight($row, $col);
-                $key = $this->key($row, $col);
+                $key = $this->key($row->id, $col->id);
                 if ($weight > 0) {
                     $result[$key] = $this->multiple ? true : $col->id;
                 }
@@ -547,7 +546,7 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
         foreach ($this->order as $rowid) {
             $row = $this->rows[$rowid];
             foreach ($this->cols as $col) {
-                $result[$this->key($row, $col)] = $this->weight($row, $col);
+                $result[$this->key($row->id, $col->id)] = $this->weight($row, $col);
             }
         }
         return $result;

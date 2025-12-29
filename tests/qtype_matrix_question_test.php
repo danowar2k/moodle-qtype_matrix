@@ -82,17 +82,13 @@ class qtype_matrix_question_test extends advanced_testcase {
 
     public function test_key():void {
         $question = qtype_matrix_test_helper::make_question('nondefault');
-        $row = new stdClass();
-        $row->id = 1;
-        $col = new stdClass();
-        $col->id = 2;
+        $rowid = 1;
+        $colid = 2;
         $randcolid = rand(3,100);
-        $this->assertEquals('cell1_2', $question->key($row, $col));
-        $this->assertEquals('cell1_2', $question->key($row->id, $col->id));
+        $this->assertEquals('cell1_2', $question->key($rowid, $colid));
         $question->multiple = false;
-        $this->assertEquals('cell1', $question->key($row, $col));
-        $this->assertEquals('cell1', $question->key($row->id, $col->id));
-        $this->assertEquals('cell1', $question->key($row->id, $randcolid));
+        $this->assertEquals('cell1', $question->key($rowid, $colid));
+        $this->assertEquals('cell1', $question->key($rowid, $randcolid));
     }
 
     public function test_answer():void {
@@ -434,7 +430,7 @@ class qtype_matrix_question_test extends advanced_testcase {
         $answer = self::make_correct_answer($question);
         $summary = $question->summarise_response($answer);
         foreach ($question->rows as $row) {
-            $key = $question->key($row, 0);
+            $key = $question->key($row->id, 0);
             if (isset($answer[$key])) {
                 $colid = $answer[$key];
                 $this->assertStringContainsString($row->shorttext.': '.$question->cols[$colid]->shorttext, $summary);
@@ -445,7 +441,7 @@ class qtype_matrix_question_test extends advanced_testcase {
         $answer = self::make_incomplete_wrong_answer($question);
         $summary = $question->summarise_response($answer);
         foreach ($question->rows as $row) {
-            $key = $question->key($row, 0);
+            $key = $question->key($row->id, 0);
             if (isset($answer[$key])) {
                 $colid = $answer[$key];
                 $this->assertStringContainsString($row->shorttext.': '.$question->cols[$colid]->shorttext, $summary);
@@ -460,7 +456,7 @@ class qtype_matrix_question_test extends advanced_testcase {
         $summary = $question->summarise_response($answer);
         foreach ($question->rows as $row) {
             foreach ($question->cols as $col) {
-                $key = $question->key($row, $col);
+                $key = $question->key($row->id, $col->id);
                 if (isset($answer[$key])) {
                     $this->assertStringContainsString($row->shorttext.': '.$col->shorttext, $summary);
                 } else {
