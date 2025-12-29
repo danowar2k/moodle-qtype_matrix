@@ -90,8 +90,8 @@ abstract class qtype_matrix_grading {
     // FIXME: This should be moved to the all grading and this should remain abstract
     public function grade_question(qtype_matrix_question $question, array $answers): float {
         $grades = [];
-        foreach ($question->rows as $row) {
-            $grades[] = $this->grade_row($question, $row, $answers);
+        foreach ($question->rows as $rowid => $row) {
+            $grades[] = $this->grade_row($question, $rowid, $answers);
         }
         $result = array_sum($grades) / count($grades);
         $result = min(1, $result);
@@ -102,14 +102,11 @@ abstract class qtype_matrix_grading {
      * Grade a specific row
      *
      * @param qtype_matrix_question $question
-     * @param mixed                 $row
+     * @param int $rowid
      * @param array                 $responses
      * @return float
      */
-    // FIXME: This should be abstract because it is never right
-    public function grade_row(qtype_matrix_question $question, $row, array $responses): float {
-        return 0.0;
-    }
+    abstract public function grade_row(qtype_matrix_question $question, int $rowid, array $responses):float;
 
     /**
      * validate

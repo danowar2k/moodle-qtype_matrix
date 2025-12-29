@@ -99,7 +99,7 @@ class renderer extends qtype_with_combined_feedback_renderer {
             }
             if ($showfeedback) {
                 // feedback for the row in the final column
-                $rowgrade = $question->grading()->grade_row($question, $row, $response);
+                $rowgrade = $question->grading()->grade_row($question, $rowid, $response);
                 $feedback = $row->feedback['text'];
                 $feedback = strip_tags($feedback) ? format_text($feedback) : '';
                 $rowcontext['feedback'] = $this->feedback_image($rowgrade) . $feedback;
