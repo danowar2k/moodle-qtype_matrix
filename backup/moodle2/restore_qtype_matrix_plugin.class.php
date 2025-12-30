@@ -179,6 +179,7 @@ class restore_qtype_matrix_plugin extends restore_qtype_plugin {
         $this->set_mapping('weight' . $key, $oldid, $newitemid);
     }
 
+    // FIXME: This should be removed, as it should probably not be supported anymore (who even knows what this code should do?)
     /**
      * Map back
      *
