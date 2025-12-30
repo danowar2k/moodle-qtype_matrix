@@ -17,9 +17,11 @@
 defined('MOODLE_INTERNAL') || die();
 
 use qtype_matrix\local\question_cleaner;
+use qtype_matrix\local\question_matrix_store;
 
 global $CFG;
-require_once($CFG->dirroot . '/question/engine/bank.php');
+require_once $CFG->dirroot . '/question/engine/bank.php';
+require_once $CFG->dirroot . '/question/type/matrix/question.php';
 
 /**
  * restore plugin class that provides the necessary information
@@ -204,23 +206,41 @@ class restore_qtype_matrix_plugin extends restore_qtype_plugin {
 
     public function recode_response($questionid, $sequencenumber, array $response): array {
         $recodedresponse = [];
-        foreach ($response as $responsekey => $responseval) {
-            if ($responsekey == '_order') {
-                $recodedresponse['_order'] = $this->recode_choice_order($responseval);
-            } else if (substr($responsekey, 0, 4) == 'cell') {
-                $responsekeynocell = substr($responsekey, 4);
-                $responsekeyids = explode('_', $responsekeynocell);
-                $newrowid = $this->get_mappingid('row', $responsekeyids[0]);
-                $newcolid = $this->get_mappingid('col', $responseval) ?? false;
-                if (count($responsekeyids) == 1) {
-                    $recodedresponse['cell' . $newrowid] = $newcolid;
-                } else if (count($responsekeyids) == 2) {
-                    $recodedresponse['cell' . $newrowid . '_' . $newcolid] = $newcolid;
+        $store = new question_matrix_store();
+        $matrix = $store->get_matrix_by_question_id($questionid);
+        $cols = $store->get_matrix_cols_by_matrix_id($matrix->id);
+        $colids = array_keys($cols);
+
+        foreach ($response as $key => $value) {
+            if ($key == '_order') {
+                $recodedresponse['_order'] = $this->recode_choice_order($value);
+            } else if (str_contains($key, 'cell')) {
+                // FIXME: Test this (look at the old data)
+                // FIXME: Check...visualize
+                $nocellkey = substr($key, strlen('cell'));
+                $keyids = explode('_', $nocellkey);
+                $oldrowid = $keyids[0];
+                $newrowid = $this->get_mappingid('row', $oldrowid, 0);
+                $newrowindex = array_search($newrowid, $recodedresponse['_order']);
+                $oldcolid = $matrix->multiple ? $keyids[1] : $value;
+                $newcolid = $this->get_mappingid('col', $oldcolid, 0);
+                $newcolindex = array_search($newcolid, $colids);
+
+                // At this point we either could map a backup ID to new rows/cols of a new question or to an already existing question.
+                // If we couldn't, then the row/col IDs from the attempt point to those of another earlier question version
+                // This version may or may not be in the backup and thus may or may not have been restored yet.
+                // FIXME: This is probably OK for 99% of backups, but what if you restore a backup containing both versions
+                //        and an attempt of the second version contains references to the first version's rows/cols?
+                //        My guess: This will throw an exception here because the attempt has the order mapped but then fails to map the step data rows/cols
+                if ($newrowindex !== false && $newcolindex !== false) {
+                    $newkey = qtype_matrix_question::new_form_cell_name($newrowindex, $newcolindex, $matrix->multiple);
+                    $newvalue = $matrix->multiple ? true : $newcolindex;
+                    $recodedresponse[$newkey] = $newvalue;
                 } else {
-                    $recodedresponse[$responsekey] = $responseval;
+                    throw new restore_step_exception('error_qtype_matrix_attempt_step_data_not_migratable');
                 }
             } else {
-                $recodedresponse[$responsekey] = $responseval;
+                $recodedresponse[$key] = $value;
             }
         }
         return $recodedresponse;
