@@ -279,8 +279,11 @@ class restore_qtype_matrix_plugin extends restore_qtype_plugin {
             
             $questiondata->options->answers = $matrix['answers'] ?? [];
             $questiondata->options->renderer = $matrix['renderer'] ?? 'matrix';
-            $questiondata->options->shuffleanswers = boolval($matrix['shuffleanswers']);
-            
+// feufix DP 2025-09-30 start (MOOD-364 - prevent unnecessary duplicates when shuffleanswers is 0)
+//            $questiondata->options->shuffleanswers = boolval($matrix['shuffleanswers']);
+            $questiondata->options->shuffleanswers = $matrix['shuffleanswers'];
+// feufix DP 2025-09-30 end (MOOD-364 - prevent unnecessary duplicates when shuffleanswers is 0)
+
             // Process rows to correct format
             $rowids = [];
             $questiondata->options->rows = [];
