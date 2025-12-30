@@ -28,52 +28,58 @@
         ],
         "rows": [
             {
+                "lastrow": false,
                 "header": {
                     "shorttext": "Short text for the first row item",
                     "descriptionid": "rowheader1",
-                    "description": "Longer description for the first row item",
-                    "lastrow": false
+                    "description": "Longer description for the first row item"
                 },
                 "cells": [
                     {
-                        "cellname": "q88:1_cell265",
                         "cellclass": "row0col0",
+                        "cellname": "q88:1_row0",
+                        "colindex": 0,
                         "ischecked": true,
-                        "colid": 123,
-                        "arialabel": "Select possible answer Short text of the first answer for item Short text for the first row item"
+                        "arialabel": "Select possible answer Short text of the first answer for item Short text for the first row item",
+                        "feedbackimage": "ICONHTML"
                     },
                     {
-                        "cellname": "q88:1_cell266",
                         "cellclass": "row0col1",
+                        "cellname": "q88:1_row0",
+                        "colindex": 1,
                         "ischecked": false,
-                        "colid": 123,
-                        "arialabel": "Select possible answer Short text of the second answer for item Short text for the first row item"
+                        "arialabel": "Select possible answer Short text of the second answer for item Short text for the first row item",
+                        "feedbackimage": "ICONHTML"
                     }
-                ]
+                ],
+                "feedback": "ICONHTML_AND_FEEDBACK"
             },
             {
+                "lastrow": true,
                 "header": {
                     "shorttext": "Short text for the second row item",
                     "descriptionid": "rowheader2",
-                    "description": "Longer description for the second row item",
-                    "lastrow": true
+                    "description": "Longer description for the second row item"
                 },
                 "cells": [
                     {
-                        "cellname": "q88:1_cell265",
                         "cellclass": "row1col0",
+                        "cellname": "q88:1_row1",
+                        "colindex": 0,
                         "ischecked": true,
-                        "colid": 123,
-                        "arialabel": "Select possible answer Short text of the first answer for item Short text for the second row item"
+                        "arialabel": "Select possible answer Short text of the first answer for item Short text for the second row item",
+                        "feedbackimage": "ICONHTML"
                     },
                     {
-                        "cellname": "q88:1_cell266",
                         "cellclass": "row1col1",
+                        "cellname": "q88:1_row1",
+                        "colindex": 1,
                         "ischecked": false,
-                        "colid": 123,
-                        "arialabel": "Select possible answer Short text of the second answer for item Short text for the second row item"
+                        "arialabel": "Select possible answer Short text of the second answer for item Short text for the second row item",
+                        "feedbackimage": "ICONHTML"
                     }
-                ]
+                ],
+                "feedback": "ICONHTML_AND_FEEDBACK"
             }
         ]
     }
@@ -115,19 +121,19 @@ Expired question: This can happen in preview mode.
 {{#cells}}
         <td class="cell {{ cellclass }}">
 {{#multiple}}
-            <input type="checkbox" name="{{ cellname }}" value="{{ colid }}"{{#isreadonly}} disabled="disabled"{{/isreadonly}}{{#ischecked}} checked="checked"{{/ischecked}} aria-label="{{{ arialabel }}}">
+            <input type="checkbox" name="{{ cellname }}" value="1"{{#isreadonly}} disabled="disabled"{{/isreadonly}}{{#ischecked}} checked="checked"{{/ischecked}} aria-label="{{{ arialabel }}}">
 {{/multiple}}
 {{^multiple}}
-            <input type="radio" name="{{ cellname }}" value="{{ colid }}"{{#isreadonly}} disabled="disabled"{{/isreadonly}}{{#ischecked}} checked="checked"{{/ischecked}} aria-label="{{{ arialabel }}}">
+            <input type="radio" name="{{ cellname }}" value="{{ colindex }}"{{#isreadonly}} disabled="disabled"{{/isreadonly}}{{#ischecked}} checked="checked"{{/ischecked}} aria-label="{{{ arialabel }}}">
 {{/multiple}}
-{{#feedbackimage}}
+{{#showfeedback}}
             {{{ feedbackimage }}}
-{{/feedbackimage}}
+{{/showfeedback}}
         </td>
 {{/cells}}
-{{#feedback}}
+{{#showfeedback}}
         <td class="feedbackcell">{{{ feedback }}}</td>
-{{/feedback}}
+{{/showfeedback}}
     </tr>
 {{/rows}}
     </tbody>

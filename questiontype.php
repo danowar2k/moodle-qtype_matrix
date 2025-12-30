@@ -177,7 +177,7 @@ class qtype_matrix extends question_type {
     /**
      * Saves question-type specific options.
      * This is called by {@link save_question()} to save the question-type specific data.
-     *
+     * This is always called after a new question has been created and saved
      * @param object $fromform This holds the information from the editing form, it is not a standard question object.
      * @return object $result->error or $result->noticeyesno or $result->notice
      * @throws dml_exception
@@ -217,7 +217,7 @@ class qtype_matrix extends question_type {
 
         foreach ($rowids as $rowindex => $rowid) {
             foreach ($colids as $colindex => $colid) {
-                $value = $weights[$rowindex][$colindex];
+                $value = $weights[$rowindex][$colindex] ?? false;
                 if ($value) {
                     $weight = (object) [
                         'rowid' => $rowid,
@@ -271,7 +271,7 @@ class qtype_matrix extends question_type {
         foreach ($matrix as $rowindex => $row) {
             foreach ($row as $colindex => $initialvalue) {
                 // Reminder: The cell name only uses rowindex if we're not allowing multiple correct answers
-                $key = qtype_matrix_question::old_form_cell_name($rowindex, $colindex, $frommultiple);
+                $key = qtype_matrix_question::form_cell_name($rowindex, $colindex, $frommultiple);
                 if (isset($fromform->{$key})) {
                     if (!$frommultiple) {
                         // Only one column can be correct, so ensure that we don't continue after we find it
@@ -413,15 +413,17 @@ class qtype_matrix extends question_type {
         $rowindex = 0;
 
         // FIXME: This looks like it can be refactored to be smaller
-        // FIXME: No need to set $fromform keys to 0, those aren't saved anyway
         // FIXME: The exporter creates elements with value 0, unnecessary as they are ignored here
         // FIXME: Maybe add an export version so that we can abort early if we change the export/import result?
         if ($fromform->multiple) {
             foreach ($weightsofrowsxml as $weightsofrowxml) {
                 $colindex = 0;
                 foreach ($weightsofrowxml['#']['weight-of-col'] as $weightofcolxml) {
-                    $key = qtype_matrix_question::old_form_cell_name($rowindex, $colindex, $fromform->multiple);
-                    $fromform->{$key} = floatval($weightofcolxml['#']);
+                    $weight = floatval($weightofcolxml['#']);
+                    if ($weight) {
+                        $key = qtype_matrix_question::form_cell_name($rowindex, $colindex, $fromform->multiple);
+                        $fromform->{$key} = $weight;
+                    }
                     $colindex++;
                 }
                 $rowindex++;
@@ -432,7 +434,7 @@ class qtype_matrix extends question_type {
                 $colindex = 0;
                 foreach ($weightsofrowxml['#']['weight-of-col'] as $weightofcolxml) {
                     if (floatval($weightofcolxml['#']) != 0) {
-                        $key = qtype_matrix_question::old_form_cell_name($rowindex, $colindex, $fromform->multiple);
+                        $key = qtype_matrix_question::form_cell_name($rowindex, $colindex, $fromform->multiple);
                         $fromform->{$key} = $colindex;
                     }
                     $colindex++;
@@ -455,7 +457,6 @@ class qtype_matrix extends question_type {
      */
     public function export_to_xml($questiondata, qformat_xml $format, $extra = null): string {
         // FIXME: indenting is wrong in exported XML, see test fixture for export_to_xml test
-        // FIXME: Exporting IDs is unnecessary, export indices
         // This is necessary so we don't have "false" values translated to empty tags
         foreach ($questiondata->options as $key => $value) {
             if ($value === false) {
@@ -463,10 +464,10 @@ class qtype_matrix extends question_type {
             }
         }
         $output = parent::export_to_xml($questiondata, $format, $extra);
-
         // Rows.
-        foreach ($questiondata->options->rows as $rowid => $row) {
-            $output .= "<!--row: " . $rowid . "-->\n";
+        $rowindex = 0;
+        foreach ($questiondata->options->rows as $row) {
+            $output .= "<!--row: " . $rowindex . "-->\n";
             $output .= "    <row>\n";
             $output .= "        <shorttext>" . $row->shorttext . "</shorttext>\n";
             $output .= "        <description {$format->format($row->description['format'])}>\n";
@@ -476,25 +477,30 @@ class qtype_matrix extends question_type {
             $output .= $format->writetext($row->feedback['text'], 3);
             $output .= "        </feedback>\n";
             $output .= "    </row>\n";
+            $rowindex++;
         }
 
         // Cols.
-        foreach ($questiondata->options->cols as $colid => $col) {
-            $output .= "<!--col: " . $colid . "-->\n";
+        $colindex = 0;
+        foreach ($questiondata->options->cols as $col) {
+            $output .= "<!--col: " . $colindex . "-->\n";
             $output .= "    <col>\n";
             $output .= "        <shorttext>" . $col->shorttext . "</shorttext>\n";
             $output .= "        <description {$format->format($col->description['format'])}>\n";
             $output .= $format->writetext($col->description['text'], 3);
             $output .= "        </description>\n";
             $output .= "    </col>\n";
+            $colindex++;
         }
 
         // Weights.
         foreach ($questiondata->options->weights as $rowid => $weightsofrow) {
-            $output .= "<!--weights of row: " . $rowid . "-->\n";
+            $rowindex = array_search($rowid, array_keys($questiondata->options->rows));
+            $output .= "<!--weights of row: " . $rowindex . "-->\n";
             $output .= "    <weights-of-row>\n";
             foreach ($weightsofrow as $colid => $weightofcol) {
-                $output .= "<!--weight of col: " . $colid . "-->\n";
+                $colindex = array_search($colid, array_keys($questiondata->options->cols));
+                $output .= "<!--weight of col: " . $colindex . "-->\n";
                 $output .= "    <weight-of-col>" . $weightofcol . "</weight-of-col>\n";
             }
             $output .= "    </weights-of-row>\n";
@@ -523,6 +529,7 @@ class qtype_matrix extends question_type {
      * @return array
      */
     public function get_possible_responses($questiondata) {
+        /** @var qtype_matrix_question $question */
         $question = $this->make_question($questiondata);
         $weights = $question->weights;
         $parts = [];

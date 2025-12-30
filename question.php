@@ -49,16 +49,16 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
     protected $order = null;
 
     /**
-     * The user's response of cell at $row, $col. That is if the cell is checked or not.
+     * The user's response of for the cell at $rowindex, $colindex. That is if the cell is checked or not.
      * If the user didn't make an answer at all (no response) the method returns false.
      *
      * @param array $response object containing the raw answer data
-     * @param int $rowid matrix row id
-     * @param int $colid matrix col id
+     * @param int $rowindex matrix row index
+     * @param int $colindex matrix col index
      *
-     * @return boolean True if the cell($row, $col) was checked by the user. False otherwise.
+     * @return boolean True if the cell at $rowindex, $colindex was checked by the user. False otherwise.
      */
-    public function response(array $response, int $rowid, int $colid):bool {
+    public function response(array $response, int $rowindex, int $colindex):bool {
         // A student may respond with a question with the multiple answer turned on.
         // Later the teacher may turn that flag off. The result is that the question
         // and response formats won't match.
@@ -82,22 +82,31 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
         //        So if changing the option is not regradable, the response format couldn't change between question versions
         $responsemultiple = $this->multiple;
         foreach ($response as $key => $value) {
-            $responsemultiple = (strpos($key, '_') !== false);
+            $responsemultiple = (strpos($key, 'col') !== false);
             break;
         }
 
-        // TODO: This used $responsemultiple to override, check if this still works
-        $key = $this->oldkey($rowid, $colid);
-        $value = $response[$key] ?? false;
-        if ($value === false) {
+        $key = qtype_matrix_question::form_cell_name($rowindex, $colindex, $responsemultiple);
+        if (!isset($response[$key]) || $response[$key] === false) {
             return false;
         }
-
+        // If the response contains answers for a multiple question (even if this is currently a single question)...
         if ($responsemultiple) {
-            return !empty($value);
+            return (bool) $response[$key];
         }
 
-        return $value == $colid;
+        return $response[$key] == $colindex;
+    }
+
+
+    /**
+     *
+     * @param int $rowindex The row index to generate the key for
+     * @param int $colindex The col index to generate the key for
+     * @return string
+     */
+    public function key(int $rowindex, int $colindex = -1): string {
+         return $this->newkey($rowindex, $colindex);
     }
 
     /**
@@ -112,12 +121,26 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
 
     /**
      *
-     * @param int $rowid The row id to generate the key for
-     * @param int $colid The col id to generate the key for
+     * @param int $rowindex The relative row index to generate the key for
+     * @param int $colindex The relative col index to generate the key for
      * @return string
      */
-    public function newkey(int $rowid, int $colid): string {
-        return self::new_form_cell_name($rowid, $colid, $this->multiple);
+    public function newkey(int $rowindex, int $colindex = -1): string {
+        return self::new_form_cell_name($rowindex, $colindex, $this->multiple);
+    }
+
+    /**
+     * Returns the current style cell name.
+     * Should be a valid php and html identifier
+     *
+     * @param int  $row      row number
+     * @param int  $col      col number
+     * @param bool $multiple one answer per row or several
+     *
+     * @return string
+     */
+    public static function form_cell_name(int $row, int $col, bool $multiple): string {
+        return self::new_form_cell_name($row, $col, $multiple);
     }
 
     /**
@@ -138,16 +161,16 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
      * Returns the new style cell name.
      * Should be a valid php and html identifier
      *
-     * @param int  $row      row number
-     * @param int  $col      col number
+     * @param int  $rowindex Relative row index number
+     * @param int  $colindex Relative col index number
      * @param bool $multiple one answer per row or several
      *
      * @return string
      */
-    public static function new_form_cell_name(int $row, int $col, bool $multiple): string {
-        $cellname = 'row'.$row;
+    public static function new_form_cell_name(int $rowindex, int $colindex, bool $multiple): string {
+        $cellname = 'row'.$rowindex;
         if ($multiple) {
-            $cellname .= 'col'.$col;
+            $cellname .= 'col'.$colindex;
         }
         return $cellname;
     }
@@ -304,7 +327,6 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
      * @return array
      * @throws coding_exception
      */
-    // FIXME: Should be callable with null to just try to return the current order
     public function get_order(question_attempt $qa): array {
         $this->init_order($qa);
         return $this->order;
@@ -386,8 +408,10 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
             return true;
         }
         $count = 0;
-        foreach ($this->rows as $row) {
-            $key = $this->oldkey($row->id, 0);
+        // It's not necessary to go in any order here, but just for completion's sake.
+        foreach ($this->order as $rowindex => $rowid) {
+            // Reminder: Single question keys do not need colindex
+            $key = $this->key($rowindex);
             if (isset($response[$key])) {
                 $count++;
             }
@@ -402,10 +426,6 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
             return false;
         }
         return true;
-    }
-
-    public function is_question_partial_gradable(): bool {
-        return $this->grademethod == 'all' || $this->grademethod == 'difference';
     }
 
     /**
@@ -433,9 +453,10 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
     public function get_num_selected_choices(array $response): int {
         $numselected = 0;
         foreach ($response as $key => $value) {
-            if (!empty($value) && $key[0] != '_') {
-                $numselected += 1;
+            if ($key[0] == '_') {
+                throw new Exception('get_num_selected_choices: Somehow the response contains an _');
             }
+            $numselected += 1;
         }
         return $numselected;
     }
@@ -450,23 +471,7 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
      * @return bool whether this response can be graded.
      */
     public function is_gradable_response(array $response): bool {
-        if ($this->is_question_partial_gradable()) {
-            if ($this->get_num_selected_choices($response) > 0) {
-                return true;
-            } else {
-                return false;
-            }
-        } else {
-            foreach ($this->rows as $row) {
-                foreach ($this->cols as $col) {
-                    $key = $this->oldkey($row->id, $col->id);
-                    if (!empty($response[$key])) {
-                        return true;
-                    }
-                }
-            }
-            return false;
-        }
+        return ($this->get_num_selected_choices($response));
     }
 
     /**
@@ -477,17 +482,17 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
      */
     public function summarise_response(array $response): string {
         $result = [];
-        foreach ($this->order ?? array_keys($this->rows) as $rowid) {
+        foreach ($this->order as $rowindex => $rowid) {
             $row = $this->rows[$rowid];
-            foreach ($this->cols as $col) {
-                $key = $this->oldkey($row->id, $col->id);
+            foreach (array_keys($this->cols) as $colindex => $colid) {
+                $key = $this->key($rowindex, $colindex);
                 $value = $response[$key] ?? false;
-                if ($value === $col->id || $value === true) {
-                    $result[] = "$row->shorttext: $col->shorttext";
+                if ($value === $colindex || $value === true) {
+                    $result[] = $row->shorttext.': '.$this->cols[$colid]->shorttext;
                 }
             }
         }
-        return implode("; ", $result);
+        return implode('; ', $result);
     }
 
     /**
@@ -527,17 +532,19 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
      */
     public function get_correct_response(): array {
         $result = [];
-        foreach ($this->order ?? array_keys($this->rows) as $rowid) {
-            $row = $this->rows[$rowid];
-            foreach ($this->cols as $colid => $col) {
-                $weight = $this->weight($rowid, $colid);
-                $key = $this->oldkey($row->id, $col->id);
-                if ($weight > 0) {
-                    $result[$key] = $this->multiple ? true : $col->id;
+        foreach ($this->order as $rowindex => $rowid) {
+            foreach (array_keys($this->cols) as $colindex => $colid) {
+                if ($this->weight($rowid, $colid) > 0) {
+                    $key = $this->key($rowindex, $colindex);
+                    if ($this->multiple) {
+                        $result[$key] = true;
+                    } else {
+                        $result[$key] = $colindex;
+                        break;
+                    }
                 }
             }
         }
-
         return $result;
     }
 
@@ -554,29 +561,17 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
      */
     public function get_expected_data(): array {
         $result = [];
-        $cells = $this->cells();
-        foreach ($cells as $key => $weight) {
-            $result[$key] = $this->multiple ? PARAM_BOOL : PARAM_INT;
-        }
-        return $result;
-    }
-
-    /**
-     * Returns an array where keys are the weights' cell names and the values
-     * are the weights
-     *
-     * @return array
-     */
-    public function cells(): array {
-        // FIXME: This doesn't work for single, because only the last column's weight is stored for the row
-        // FIXME: The weights aren't even necessary, because the one function using this doesn't use the weights
-        //        Only the stored keys are important
-        // FIXME: Needs order to have been initialized
-        $result = [];
-        foreach ($this->order as $rowid) {
-            $row = $this->rows[$rowid];
-            foreach ($this->cols as $colid => $col) {
-                $result[$this->oldkey($row->id, $col->id)] = $this->weight($rowid, $colid);
+        // Checkboxes are separated, each can be either selected or not.
+        // With radio buttons, it must be identifiable which column was selected.
+        $paramtype = $this->multiple ? PARAM_BOOL : PARAM_INT;
+        foreach ($this->order as $rowindex => $rowid) {
+            foreach (array_keys($this->cols) as $colindex => $colid) {
+                $key = $this->key($rowindex, $colindex);
+                $result[$key] = $paramtype;
+                if (!$this->multiple) {
+                    // Only one parameter for each row (with the colindex as the value) is needed.
+                    break;
+                }
             }
         }
         return $result;
@@ -595,70 +590,72 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
         return $this->multiple ? $this->classify_multi_response($selectedcolumns) : $this->classify_simple_response($selectedcolumns);
     }
 
-    protected function classify_multi_response($selectedcolumns) {
-        $parts = [];
+    protected function classify_multi_response(array $selectedcolumns):array {
+        $classifiedresponses = [];
+        $nrrows = count($this->rows);
         foreach ($this->rows as $rowid => $row) {
-            $subparts = [];
+            $rowresponses = [];
             foreach ($this->cols as $colid => $col) {
-                if (isset($selectedcolumns['cell'.$rowid.'_'.$colid])) {
+                if (in_array($colid, $selectedcolumns[$rowid])) {
                     $partialcredit = 0;
                     if ($this->weights[$rowid][$colid] > 0) {
-                        $partialcredit = $this->grademethod == 'all' ? (1 / count($this->rows)) : 1;
+                        $partialcredit = $this->grademethod == 'all' ? (1 / $nrrows) : 1;
                     }
-                    $subparts[$colid] = new question_classified_response($colid, $col->shorttext, $partialcredit);
+                    $rowresponses[$colid] = new question_classified_response($colid, $col->shorttext, $partialcredit);
                 }
             }
 
-            if (empty($subparts)) {
-                $parts[$rowid] = question_classified_response::no_response();
+            if (!$rowresponses) {
+                $classifiedresponses[$rowid] = question_classified_response::no_response();
             } else {
-                $parts[$rowid] = $subparts;
+                $classifiedresponses[$rowid] = $rowresponses;
             }
         }
-        return $parts;
+        return $classifiedresponses;
     }
 
-    protected function classify_simple_response($selectedcolumns) {
-        $parts = [];
+    protected function classify_simple_response($selectedcolumns):array {
+        $classifiedresponses = [];
+        $nrrows = count($this->rows);
         foreach ($this->rows as $rowid => $row) {
-
-            if (empty($selectedcolumns[$rowid])) {
-                $parts[$rowid] = question_classified_response::no_response();
+            if (!$selectedcolumns[$rowid]) {
+                $classifiedresponses[$rowid] = question_classified_response::no_response();
                 continue;
             }
-
-            // Find the chosen column by columnnumber.
-            $column = null;
-            foreach ($this->cols as $colid => $col) {
-                if ($colid == $selectedcolumns[$rowid]) {
-                    $column = $col;
-                    break;
-                }
+            $column = $this->cols[$selectedcolumns[$rowid][0]] ?? null;
+            if ($column === null) {
+                $classifiedresponses[$rowid] = question_classified_response::no_response();
+                continue;
             }
 
             $partialcredit = 0;
 
             if ($this->weights[$rowid][$column->id] > 0) {
-                $partialcredit = $this->grademethod == 'all' ? (1 / count($this->rows)) : 1;
+                $partialcredit = $this->grademethod == 'all' ? (1 / $nrrows) : 1;
             }
 
-            $parts[$rowid] = new question_classified_response($column->id, $column->shorttext, $partialcredit);
+            $classifiedresponses[$rowid] = new question_classified_response($column->id, $column->shorttext, $partialcredit);
         }
 
-        return $parts;
+        return $classifiedresponses;
     }
 
     protected function get_selected_columns(array $response): array {
         $selectedcolumns = [];
-        foreach ($this->order as $rowid) {
-            foreach ($this->cols as $colid => $col) {
-                $key = $this->oldkey($rowid, $colid);
-                if (property_exists((object) $response, $key) && $response[$key]) {
-                    $selectedcolumns[$this->multiple ? $key : $rowid] = $this->multiple ? $colid : $response[$key];
+        foreach ($this->order as $rowindex => $rowid) {
+            $selectedcolumns[$rowid] = [];
+            $indicedcolids = array_keys($this->cols);
+            foreach ($indicedcolids as $colindex => $colid) {
+                $key = $this->key($rowindex, $colindex);
+                if (isset($response[$key])) {
+                    $selectedcolumns[$rowid][] = $this->multiple ? $colid : $indicedcolids[$response[$key]];
+                    if (!$this->multiple) {
+                        // Found the single selected column.
+                        break;
+                    }
                 }
             }
         }
-
         return $selectedcolumns;
     }
 }

@@ -26,7 +26,6 @@ use qtype_matrix_question;
 use question_attempt_step;
 use question_classified_response;
 use question_state;
-use stdClass;
 use qtype_matrix_test_helper;
 
 defined('MOODLE_INTERNAL') || die();
@@ -50,12 +49,12 @@ class qtype_matrix_question_test extends advanced_testcase {
         ];
         $this->assertFalse($question->response($response, 1, 2));
         $response = [
-            'cell1_2' => 1
+            'row1col2' => 1
         ];
         $this->assertTrue($question->response($response, 1, 2));
         $response = [
-            'cell0_1' => 1,
-            'cell1_2' => 1
+            'row0col1' => 1,
+            'row1col2' => 1
         ];
         $this->assertTrue($question->response($response, 1, 2));
         $question->multiple = false;
@@ -63,16 +62,16 @@ class qtype_matrix_question_test extends advanced_testcase {
         ];
         $this->assertFalse($question->response($response, 1, 2));
         $response = [
-            'cell1' => 1
+            'row1' => 1
         ];
         $this->assertFalse($question->response($response, 1, 2));
         $response = [
-            'cell1' => 2
+            'row1' => 2
         ];
         $this->assertTrue($question->response($response, 1, 2));
         $response = [
-            'cell0' => 2,
-            'cell1' => 2
+            'row0' => 2,
+            'row1' => 2
         ];
         $this->assertTrue($question->response($response, 1, 2));
     }
@@ -332,6 +331,7 @@ class qtype_matrix_question_test extends advanced_testcase {
      */
     public function test_is_complete_response(): void {
         $question = qtype_matrix_test_helper::make_question('default');
+        $this->initialize_order($question);
         $answer = [];
         $this->assertFalse($question->is_complete_response($answer));
         $this->assertNotNull($question->get_validation_error($answer));
@@ -361,6 +361,7 @@ class qtype_matrix_question_test extends advanced_testcase {
         $this->assertNotNull($question->get_validation_error($answer));
 
         $question = qtype_matrix_test_helper::make_question('nondefault');
+        $this->initialize_order($question);
 
         $answer = [];
         $this->assertTrue($question->is_complete_response($answer));
@@ -443,10 +444,12 @@ class qtype_matrix_question_test extends advanced_testcase {
      */
     public function test_summarise_response(): void {
         $question = qtype_matrix_test_helper::make_question('default');
+        $this->initialize_order($question);
+
         $answer = self::make_correct_answer($question);
         $summary = $question->summarise_response($answer);
         foreach ($question->rows as $row) {
-            $key = $question->oldkey($row->id, 0);
+            $key = $question->key($row->id);
             if (isset($answer[$key])) {
                 $colid = $answer[$key];
                 $this->assertStringContainsString($row->shorttext.': '.$question->cols[$colid]->shorttext, $summary);
@@ -457,7 +460,7 @@ class qtype_matrix_question_test extends advanced_testcase {
         $answer = self::make_incomplete_wrong_answer($question);
         $summary = $question->summarise_response($answer);
         foreach ($question->rows as $row) {
-            $key = $question->oldkey($row->id, 0);
+            $key = $question->key($row->id);
             if (isset($answer[$key])) {
                 $colid = $answer[$key];
                 $this->assertStringContainsString($row->shorttext.': '.$question->cols[$colid]->shorttext, $summary);
@@ -467,12 +470,13 @@ class qtype_matrix_question_test extends advanced_testcase {
         }
 
         $question = qtype_matrix_test_helper::make_question('nondefault');
+        $this->initialize_order($question);
 
         $answer = self::make_correct_answer($question);
         $summary = $question->summarise_response($answer);
         foreach ($question->rows as $row) {
             foreach ($question->cols as $col) {
-                $key = $question->oldkey($row->id, $col->id);
+                $key = $question->key($row->id, $col->id);
                 if (isset($answer[$key])) {
                     $this->assertStringContainsString($row->shorttext.': '.$col->shorttext, $summary);
                 } else {
@@ -489,6 +493,7 @@ class qtype_matrix_question_test extends advanced_testcase {
      */
     public function test_is_same_response(): void {
         $question = qtype_matrix_test_helper::make_question('default');
+        $this->initialize_order($question);
 
         $correct = $question->get_correct_response();
         $answer = self::make_correct_answer($question);
@@ -498,14 +503,15 @@ class qtype_matrix_question_test extends advanced_testcase {
         $this->assertFalse($question->is_same_response($correct, $answer));
 
         $nextanswer = $answer;
-        unset($nextanswer['cell3']);
+        unset($nextanswer['row3']);
         $this->assertFalse($question->is_same_response($answer, $nextanswer));
 
         $nextanswer = $answer;
-        $nextanswer['cell3'] = $nextanswer['cell3'] - 1;
+        $nextanswer['row3'] = $nextanswer['row3'] - 1;
         $this->assertFalse($question->is_same_response($answer, $nextanswer));
 
         $question = qtype_matrix_test_helper::make_question('nondefault');
+        $this->initialize_order($question);
 
         $correct = $question->get_correct_response();
         $answer = self::make_correct_answer($question);
@@ -515,16 +521,16 @@ class qtype_matrix_question_test extends advanced_testcase {
         $this->assertFalse($question->is_same_response($correct, $answer));
 
         $nextanswer = $answer;
-        unset($nextanswer['cell3_3']);
+        unset($nextanswer['row3col3']);
         $this->assertFalse($question->is_same_response($answer, $nextanswer));
 
         $nextanswer = $answer;
-        unset($nextanswer['cell3_3']);
-        $nextanswer['cell3_2'] = true;
+        unset($nextanswer['row3col3']);
+        $nextanswer['row3col2'] = true;
         $this->assertFalse($question->is_same_response($answer, $nextanswer));
 
         $nextanswer = $answer;
-        $nextanswer['cell3_3'] = false;
+        $nextanswer['row3col3'] = false;
         $this->assertFalse($question->is_same_response($answer, $nextanswer));
 
     }
@@ -535,6 +541,7 @@ class qtype_matrix_question_test extends advanced_testcase {
      */
     public function test_get_correct_response():void {
         $question = qtype_matrix_test_helper::make_question('default');
+        $this->initialize_order($question);
 
         $answer = self::make_correct_answer($question);
         $this->assertEquals($answer, $question->get_correct_response());
@@ -543,6 +550,7 @@ class qtype_matrix_question_test extends advanced_testcase {
         $this->assertNotEquals($answer, $question->get_correct_response());
 
         $question = qtype_matrix_test_helper::make_question('nondefault');
+        $this->initialize_order($question);
 
         $answer = self::make_correct_answer($question);
         $this->assertEquals($answer, $question->get_correct_response());
@@ -555,10 +563,10 @@ class qtype_matrix_question_test extends advanced_testcase {
         $question = qtype_matrix_test_helper::make_question('default');
         $this->initialize_order($question);
         $expected = array_fill_keys([
-            'cell0',
-            'cell1',
-            'cell2',
-            'cell3'
+            'row0',
+            'row1',
+            'row2',
+            'row3'
         ], PARAM_INT
         );
         $this->assertEquals($expected, $question->get_expected_data());
@@ -566,33 +574,14 @@ class qtype_matrix_question_test extends advanced_testcase {
         $question = qtype_matrix_test_helper::make_question('nondefault');
         $this->initialize_order($question);
         $expected = array_fill_keys([
-            'cell0_0','cell0_1','cell0_2','cell0_3',
-            'cell1_0','cell1_1','cell1_2','cell1_3',
-            'cell2_0','cell2_1','cell2_2','cell2_3',
-            'cell3_0','cell3_1','cell3_2','cell3_3',
+            'row0col0','row0col1','row0col2','row0col3',
+            'row1col0','row1col1','row1col2','row1col3',
+            'row2col0','row2col1','row2col2','row2col3',
+            'row3col0','row3col1','row3col2','row3col3',
             ],
             PARAM_BOOL
         );
         $this->assertEquals($expected, $question->get_expected_data());
-    }
-
-    // TODO: This test currently works if we assume the way the function is useful.
-    public function test_cells():void {
-        $question = qtype_matrix_test_helper::make_question('default');
-        $this->initialize_order($question);
-
-        $expected_cells = ['cell0','cell1','cell2','cell3'];
-        $this->assertEquals($expected_cells, array_keys($question->cells()));
-
-        $question = qtype_matrix_test_helper::make_question('nondefault');
-        $this->initialize_order($question);
-        $expected_cells = [
-            'cell0_0','cell0_1','cell0_2','cell0_3',
-            'cell1_0','cell1_1','cell1_2','cell1_3',
-            'cell2_0','cell2_1','cell2_2','cell2_3',
-            'cell3_0','cell3_1','cell3_2','cell3_3',
-        ];
-        $this->assertEquals($expected_cells, array_keys($question->cells()));
     }
 
     public function test_classify_response():void {
@@ -845,7 +834,7 @@ class qtype_matrix_question_test extends advanced_testcase {
         foreach ($matrix as $rowindex => $cols) {
             foreach ($cols as $colindex => $colvalue) {
                 if ($colvalue > 0) {
-                    $key = $question->oldkey($rowindex, $colindex);
+                    $key = $question->key($rowindex, $colindex);
                     $answer[$key] = $question->multiple ? true : $colindex;
                 }
             }

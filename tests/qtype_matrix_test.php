@@ -354,7 +354,7 @@ class qtype_matrix_test extends advanced_testcase {
             'multiple, first col correct' => [
                 true,
                 [
-                    'cell0_0' => 1
+                    'row0col0' => 1
                 ],
                 [
                     0 => [
@@ -365,8 +365,8 @@ class qtype_matrix_test extends advanced_testcase {
             'multiple, two cols correct' => [
                 true,
                 [
-                    'cell0_0' => 1,
-                    'cell0_1' => 1
+                    'row0col0' => 1,
+                    'row0col1' => 1
                 ],
                 [
                     0 => [
@@ -378,7 +378,7 @@ class qtype_matrix_test extends advanced_testcase {
             'single, first col correct' => [
                 false,
                 [
-                    'cell0' => 0
+                    'row0' => 0
                 ],
                 [
                     0 => [
@@ -390,8 +390,8 @@ class qtype_matrix_test extends advanced_testcase {
 //            'single, out of range' => [
 //                false,
 //                [
-//                    'cell0' => 21,
-//                    'cell21' => 0
+//                    'row0' => 21,
+//                    'row21' => 0
 //                ],
 //                [
 //                ],
@@ -399,8 +399,8 @@ class qtype_matrix_test extends advanced_testcase {
             'multiple, out of range' => [
                 false,
                 [
-                    'cell0_21' => 1,
-                    'cell21_0' => 1,
+                    'row0col21' => 1,
+                    'row21col0' => 1,
                 ],
                 [
                 ],
@@ -435,22 +435,22 @@ class qtype_matrix_test extends advanced_testcase {
             $this->assertEquals('<p>col'.$colindex.'description</p>', $fromform->cols_description[$colindex]['text']);
             $this->assertEquals(FORMAT_HTML, $fromform->cols_description[$colindex]['format']);
         }
-        $this->assertEquals(0, $fromform->cell0);
-        $this->assertFalse(isset($fromform->cell0_0));
-        $this->assertFalse(isset($fromform->cell0_1));
-        $this->assertFalse(isset($fromform->cell0_2));
-        $this->assertEquals(1, $fromform->cell1);
-        $this->assertFalse(isset($fromform->cell1_0));
-        $this->assertFalse(isset($fromform->cell1_1));
-        $this->assertFalse(isset($fromform->cell1_2));
-        $this->assertEquals(2, $fromform->cell2);
-        $this->assertFalse(isset($fromform->cell2_0));
-        $this->assertFalse(isset($fromform->cell2_1));
-        $this->assertFalse(isset($fromform->cell2_2));
-        $this->assertEquals(0, $fromform->cell3);
-        $this->assertFalse(isset($fromform->cell3_0));
-        $this->assertFalse(isset($fromform->cell3_1));
-        $this->assertFalse(isset($fromform->cell3_2));
+        $this->assertEquals(0, $fromform->row0);
+        $this->assertFalse(isset($fromform->row0col0));
+        $this->assertFalse(isset($fromform->row0col1));
+        $this->assertFalse(isset($fromform->row0col2));
+        $this->assertEquals(1, $fromform->row1);
+        $this->assertFalse(isset($fromform->row1col0));
+        $this->assertFalse(isset($fromform->row1col1));
+        $this->assertFalse(isset($fromform->row1col2));
+        $this->assertEquals(2, $fromform->row2);
+        $this->assertFalse(isset($fromform->row2col0));
+        $this->assertFalse(isset($fromform->row2col1));
+        $this->assertFalse(isset($fromform->row2col2));
+        $this->assertEquals(0, $fromform->row3);
+        $this->assertFalse(isset($fromform->row3col0));
+        $this->assertFalse(isset($fromform->row3col1));
+        $this->assertFalse(isset($fromform->row3col2));
     }
 
     public function test_import_from_xml_nondefault_value_question():void {
@@ -488,22 +488,22 @@ class qtype_matrix_test extends advanced_testcase {
             }
             $this->assertEquals(FORMAT_HTML, $fromform->cols_description[$colindex]['format']);
         }
-        $this->assertEquals(1, $fromform->cell0_0);
-        $this->assertEquals(1, $fromform->cell0_1);
-        $this->assertEquals(1, $fromform->cell0_2);
-        $this->assertFalse(isset($fromform->cell0));
-        $this->assertEquals(1, $fromform->cell1_0);
-        $this->assertEquals(0, $fromform->cell1_1);
-        $this->assertEquals(1, $fromform->cell1_2);
-        $this->assertFalse(isset($fromform->cell1));
-        $this->assertEquals(0, $fromform->cell2_0);
-        $this->assertEquals(0, $fromform->cell2_1);
-        $this->assertEquals(1, $fromform->cell2_2);
-        $this->assertFalse(isset($fromform->cell2));
-        $this->assertEquals(1, $fromform->cell3_0);
-        $this->assertEquals(0, $fromform->cell3_1);
-        $this->assertEquals(0, $fromform->cell3_2);
-        $this->assertFalse(isset($fromform->cell3));
+        $this->assertEquals(1, $fromform->row0col0);
+        $this->assertEquals(1, $fromform->row0col1);
+        $this->assertEquals(1, $fromform->row0col2);
+        $this->assertFalse(isset($fromform->row0));
+        $this->assertEquals(1, $fromform->row1col0);
+        $this->assertFalse(isset($fromform->row1col1));
+        $this->assertEquals(1, $fromform->row1col2);
+        $this->assertFalse(isset($fromform->row1));
+        $this->assertFalse(isset($fromform->row2col0));
+        $this->assertFalse(isset($fromform->row2col1));
+        $this->assertEquals(1, $fromform->row2col2);
+        $this->assertFalse(isset($fromform->row2));
+        $this->assertEquals(1, $fromform->row3col0);
+        $this->assertFalse(isset($fromform->row3col1));
+        $this->assertFalse(isset($fromform->row3col2));
+        $this->assertFalse(isset($fromform->row3));
     }
 
     public function test_import_from_xml_missing_options_question():void {

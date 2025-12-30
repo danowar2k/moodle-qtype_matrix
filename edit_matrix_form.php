@@ -164,12 +164,12 @@ class qtype_matrix_edit_form extends question_edit_form {
         $html = '<table class="quedit matrix"><thead><tr>';
         $html .= '<th></th>';
         $matrix[] = $builder->create_static($html);
-        for ($col = 0; $col < $colscount; $col++) {
+        for ($colindex = 0; $colindex < $colscount; $colindex++) {
             $matrix[] = $builder->create_static('<th>');
             $matrix[] = $builder->create_static('<div class="input-group">');
-            $matrix[] = $builder->create_text("cols_shorttext[$col]", false);
+            $matrix[] = $builder->create_text("cols_shorttext[$colindex]", false);
 
-            $popup = $builder->create_htmlpopup("cols_description[$col]", lang::col_description());
+            $popup = $builder->create_htmlpopup("cols_description[$colindex]", lang::col_description());
             $matrix = array_merge($matrix, $popup);
 
             $matrix[] = $builder->create_static('</div>');
@@ -205,7 +205,7 @@ class qtype_matrix_edit_form extends question_edit_form {
 
             for ($colindex = 0; $colindex < $colscount; $colindex++) {
                 $matrix[] = $builder->create_static('<td>');
-                $cellname = qtype_matrix_question::old_form_cell_name($rowindex, $colindex, $multiple);
+                $cellname = qtype_matrix_question::form_cell_name($rowindex, $colindex, $multiple);
                 if ($multiple) {
                     $cellcontent = $this->_form->createElement('checkbox', $cellname, 'label');
                 } else {
@@ -418,23 +418,18 @@ class qtype_matrix_edit_form extends question_edit_form {
                 $question->cols_description[] = $col->description;
             }
 
-            $rowindex = 0;
-            foreach ($options->rows as $row) {
-                $colindex = 0;
-                foreach ($options->cols as $col) {
-                    $cellnamemultipleanswers = qtype_matrix_question::old_form_cell_name($rowindex, $colindex, true);
-                    $cellnamesingleanswer = qtype_matrix_question::old_form_cell_name($rowindex, $colindex, false);
-
-                    $weight = $options->weights[$row->id][$col->id];
-                    // Todo: check security impact we access and set direct on an object, could be bad.
-                    $question->{$cellnamemultipleanswers} = ($weight > 0);
-                    $question->{$cellnamesingleanswer} = $colindex;
-                    if (!$options->multiple && $weight > 0) {
-                        break;
+            foreach (array_keys($options->rows) as $rowindex => $rowid) {
+                foreach (array_keys($options->cols) as $colindex => $colid) {
+                    if ($options->weights[$rowid][$colid] > 0) {
+                        $cellname = qtype_matrix_question::form_cell_name($rowindex, $colindex, $options->multiple);
+                        if (!$options->multiple) {
+                            $question->{$cellname} = $colindex;
+                            break;
+                        } else {
+                            $question->{$cellname} = true;
+                        }
                     }
-                    $colindex++;
                 }
-                $rowindex++;
             }
         }
         /* set data should be called on new questions to set up course id, etc

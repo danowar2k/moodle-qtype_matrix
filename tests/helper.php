@@ -160,13 +160,13 @@ class qtype_matrix_test_helper extends question_test_helper {
         }
         foreach ($question->rows as $ri => $row) {
             foreach ($question->cols as $ci => $col) {
-                $key = $question->oldkey($ri, $ci);
-                if ($question->weights[$ri][$ci]) {
+                $key = $question->key($ri, $ci);
+                if ($question->weights[$row->id][$col->id]) {
                     if (!$question->multiple) {
                         $form->{$key} = $ci;
                         break;
                     } else {
-                        $form->{$key} = $question->weights[$ri][$ci];
+                        $form->{$key} = $question->weights[$row->id][$col->id];
                     }
                 }
             }

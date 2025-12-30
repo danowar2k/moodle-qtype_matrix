@@ -68,22 +68,21 @@ class renderer extends qtype_with_combined_feedback_renderer {
         $order = $question->get_order($qa);
         $response = $qa->get_last_qt_data();
         $nrrows = count($order);
-        $currentrow = 1;
         foreach ($order as $rowindex => $rowid) {
             $rowcontext = [];
             $row = $question->rows[$rowid];
             $rowcontext['header'] = $this->headercontext($row, false);
             $rowcontext['cells'] = [];
-            $rowcolindex = 0;
+            $colindex = 0;
             foreach ($question->cols as $colid => $col) {
-                $cellname = $qa->get_field_prefix() . $question->oldkey($rowid, $colid);
-                $ischecked = $question->response($response, $rowid, $colid);
+                $cellname = $qa->get_field_prefix() . $question->key($rowindex, $colindex);
+                $ischecked = $question->response($response, $rowindex, $colindex);
 
                 $cellcontext = [];
                 $cellcontext['cellname'] = $cellname;
-                $cellcontext['cellclass'] = 'row'.$rowindex.'col'.$rowcolindex;
+                $cellcontext['cellclass'] = 'row'.$rowindex.'col'.$colindex;
                 $cellcontext['ischecked'] = $ischecked;
-                $cellcontext['colid'] = $col->id;
+                $cellcontext['colindex'] = $colindex;
                 $a = [
                     'itemshorttext' => $row->shorttext,
                     'answershorttext' => $col->shorttext
@@ -95,19 +94,18 @@ class renderer extends qtype_with_combined_feedback_renderer {
                     $cellcontext['feedbackimage'] = $this->feedback_image($weight);
                 }
                 $rowcontext['cells'][] = $cellcontext;
-                $rowcolindex++;
+                $colindex++;
             }
             if ($showfeedback) {
                 // feedback for the row in the final column
-                $rowgrade = $question->grading()->grade_row($question, $rowid, $response);
+                $rowgrade = $question->grading()->grade_row($question, $rowindex, $response);
                 $feedback = $row->feedback['text'];
                 $feedback = strip_tags($feedback) ? format_text($feedback) : '';
                 $rowcontext['feedback'] = $this->feedback_image($rowgrade) . $feedback;
             }
-            if ($currentrow == $nrrows) {
+            if ($rowindex == ($nrrows - 1)) {
                 $rowcontext['lastrow'] = true;
             }
-            $currentrow++;
             $context['rows'][] = $rowcontext;
         }
 
