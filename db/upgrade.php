@@ -111,5 +111,6 @@ function xmldb_qtype_matrix_upgrade(int $oldversion): bool {
 
     }
 
+    // FIXME: Need an upgrade step that transforms attempt steps to the new format
     return true;
 }
