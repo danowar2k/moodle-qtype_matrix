@@ -257,6 +257,7 @@ class qtype_matrix_question_test extends advanced_testcase {
         float  $incompleteincorrectgrade
     ): void {
         $question = qtype_matrix_test_helper::make_question($questiontype);
+        $this->initialize_order($question);
         $question->grademethod = $grademethod;
 
         $correctanswer = self::make_correct_answer($question);

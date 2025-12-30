@@ -56,7 +56,7 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
      * @param int $rowindex matrix row index
      * @param int $colindex matrix col index
      *
-     * @return boolean True if the cell at $rowindex, $colindex was checked by the user. False otherwise.
+     * @return bool True if the cell at $rowindex, $colindex was checked by the user. False otherwise.
      */
     public function response(array $response, int $rowindex, int $colindex):bool {
         // A student may respond with a question with the multiple answer turned on.
@@ -183,7 +183,9 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
      *
      * @return boolean  True if cell($rowid, $colid) is correct, false otherwise.
      */
-    public function answer(int $rowid, int $colid): bool {
+    public function answer(int $rowindex, int $colindex): bool {
+        $rowid = $this->order[$rowindex];
+        $colid = array_keys($this->cols)[$colindex];
         return $this->weight($rowid, $colid) > 0;
     }
 
@@ -380,7 +382,7 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
      * @return array (number, integer) the fraction, and the state.
      */
     public function grade_response(array $response): array {
-        $grade = $this->grading()->grade_question($this, $response);
+        $grade = $this->grading()->grade_question($this, $this->order, $response);
         $state = question_state::graded_state_for_fraction($grade);
         return [$grade, $state];
     }

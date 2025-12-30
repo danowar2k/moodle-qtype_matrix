@@ -62,13 +62,14 @@ class all extends qtype_matrix_grading implements grading {
      * Returns the question's grade. By default, it is the average of correct questions.
      *
      * @param qtype_matrix_question $question
-     * @param array                 $answers
+     * @param int[] $roworder Order of rows in this question
+     * @param array                 $response
      * @return float
      */
-    public function grade_question(qtype_matrix_question $question, array $answers): float {
+    public function grade_question(qtype_matrix_question $question, array $roworder, array $response): float {
         $grades = [];
-        foreach ($question->rows as $rowid => $row) {
-            $grades[] = $this->grade_row($question, $rowid, $answers);
+        foreach ($roworder as $rowindex => $rowid) {
+            $grades[] = $this->grade_row($question, $rowindex, $response);
         }
         $result = array_sum($grades) / count($grades);
         $result = min(1, $result);
@@ -79,16 +80,16 @@ class all extends qtype_matrix_grading implements grading {
      * All cells of a row of an answer must match with the question's row to get point.
      *
      * @param qtype_matrix_question $question  The question to grade
-     * @param int $rowid Row to grade
-     * @param array                  $responses User's responses
+     * @param int $rowindex Row to grade
+     * @param array                  $response User's responses
      * @return float                            The row grade, either 0 or 1
      */
-    public function grade_row(qtype_matrix_question $question, int $rowid, array $responses):float {
+    public function grade_row(qtype_matrix_question $question, int $rowindex, array $response):float {
         // All of a row must be correct to get a point.
-        foreach ($question->cols as $colid => $col) {
-            $answer = $question->answer($rowid, $colid);
-            $response = $question->response($responses, $rowid, $colid);
-            if ($answer != $response) {
+        foreach (array_keys($question->cols) as $colindex => $colid) {
+            $cellanswer = $question->answer($rowindex, $colindex);
+            $cellresponse = $question->response($response, $rowindex, $colindex);
+            if ($cellanswer != $cellresponse) {
                 return 0.0;
             }
         }

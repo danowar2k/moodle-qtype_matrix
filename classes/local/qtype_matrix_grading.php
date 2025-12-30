@@ -81,23 +81,24 @@ abstract class qtype_matrix_grading {
     }
 
     /**
-     * Returns the question's grade.
+     * Returns the question's grade for the given response.
      *
      * @param qtype_matrix_question $question
-     * @param array                 $answers
+     * @param int[] $roworder Order of rows in this question
+     * @param array                 $response
      * @return float
      */
-    abstract public function grade_question(qtype_matrix_question $question, array $answers):float;
+    abstract public function grade_question(qtype_matrix_question $question, array $roworder, array $response):float;
 
     /**
      * Grade a specific row
      *
      * @param qtype_matrix_question $question
-     * @param int $rowid
-     * @param array                 $responses
+     * @param int $rowindex
+     * @param array                 $response
      * @return float
      */
-    abstract public function grade_row(qtype_matrix_question $question, int $rowid, array $responses):float;
+    abstract public function grade_row(qtype_matrix_question $question, int $rowindex, array $response):float;
 
     /**
      * validate
