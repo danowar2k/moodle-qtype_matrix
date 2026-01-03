@@ -137,19 +137,11 @@ class qtype_matrix_question_test extends advanced_testcase {
 
     public function test_weight():void {
         $question = qtype_matrix_test_helper::make_question('default');
-        $row = new stdClass();
-        $row->id = 1;
-        $col = new stdClass();
-        $col->id = 2;
-        $question->weights[$row->id][$col->id] = 1;
-        $this->assertEquals(1, $question->weight($row, $col));
-        $this->assertEquals(1, $question->weight($row->id, $col->id));
-        // FIXME: This throws str_replace(): Passing null to parameter #2 ($replace) is deprecated
-        // $this->assertEquals(1, $question->weight('cell1x2'));
+        $question->weights[1][2] = 1;
+        $this->assertEquals(1, $question->weight(1, 2));
         // Strangely, this is bad data, but works here.
-        $question->weights[$row->id][$col->id] = 2;
-        $this->assertEquals(2, $question->weight($row, $col));
-        $this->assertEquals(2, $question->weight($row->id, $col->id));
+        $question->weights[1][2] = 2;
+        $this->assertEquals(2, $question->weight(1, 2));
     }
 
     public function test_start_attempt_noshuffle():void {

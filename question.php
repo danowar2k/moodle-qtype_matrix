@@ -161,27 +161,19 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
      * @return boolean  True if cell($row, $col) is correct, false otherwise.
      */
     public function answer($row = null, $col = null): bool {
-        return $this->weight($row, $col) > 0;
+        $rowid = $row->id ?? $row;
+        $colid = $col->id ?? $col;
+        return $this->weight($rowid, $colid) > 0;
     }
 
     /**
      *
-     * @param mixed $row
-     * @param mixed $col
+     * @param int $rowid
+     * @param int $colid
      * @return float
      */
-    public function weight($row = null, $col = null): float {
-        // Todo: What the heck is this? It is used in two ways? Better Split it up then!
-        // FIXME: We should just remove this part (I've searched for the 'x' but it doesn't feature anywhere)
-        if (is_string($row) && is_null($col)) {
-            $key = str_replace('cell', $col, $row);
-            [$rowid, $colid] = explode('x', $key);
-        } else {
-            $rowid = is_object($row) ? $row->id : $row;
-            $colid = is_object($col) ? $col->id : $col;
-        }
-        // FIXME: This expects $this->weights to always have a value, better do ?? 0
-        return (float) $this->weights[$rowid][$colid];
+    public function weight(int $rowid, int $colid):float {
+        return (float) $this->weights[$rowid][$colid] ?? 0;
     }
 
     /**
@@ -539,8 +531,8 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
         $result = [];
         foreach ($this->order ?? array_keys($this->rows) as $rowid) {
             $row = $this->rows[$rowid];
-            foreach ($this->cols as $col) {
-                $weight = $this->weight($row, $col);
+            foreach ($this->cols as $colid => $col) {
+                $weight = $this->weight($rowid, $colid);
                 $key = $this->oldkey($row->id, $col->id);
                 if ($weight > 0) {
                     $result[$key] = $this->multiple ? true : $col->id;
@@ -585,8 +577,8 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
         $result = [];
         foreach ($this->order as $rowid) {
             $row = $this->rows[$rowid];
-            foreach ($this->cols as $col) {
-                $result[$this->oldkey($row->id, $col->id)] = $this->weight($row, $col);
+            foreach ($this->cols as $colid => $col) {
+                $result[$this->oldkey($row->id, $col->id)] = $this->weight($rowid, $colid);
             }
         }
         return $result;

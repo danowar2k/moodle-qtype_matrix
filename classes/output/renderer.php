@@ -90,7 +90,7 @@ class renderer extends qtype_with_combined_feedback_renderer {
                 ];
                 $cellcontext['arialabel'] = lang::get('cellarialabel', (object) $a);
 
-                $weight = $question->weight($row, $col);
+                $weight = $question->weight($rowid, $colid);
                 if ($showfeedback && ($ischecked || question_state::graded_state_for_fraction($weight)->is_correct())) {
                     $cellcontext['feedbackimage'] = $this->feedback_image($weight);
                 }
