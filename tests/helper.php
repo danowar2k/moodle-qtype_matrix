@@ -100,24 +100,25 @@ class qtype_matrix_test_helper extends question_test_helper {
         $questiondata->options->rows = [];
         foreach ($question->rows as $row) {
             $optionrow = new stdClass();
+            $optionrow->id = $row->id;
             $optionrow->shorttext = $row->shorttext;
             $optionrow->description = [];
             $optionrow->description['text'] = $row->description;
             $optionrow->description['format'] = FORMAT_HTML;
             $optionrow->feedback['text'] = $row->feedback;
             $optionrow->feedback['format'] = FORMAT_HTML;
-            $questiondata->options->rows[] = $optionrow;
+            $questiondata->options->rows[$row->id] = $optionrow;
         }
         $questiondata->options->cols = [];
         foreach ($question->cols as $col) {
             $optioncol = new stdClass();
+            $optioncol->id = $col->id;
             $optioncol->shorttext = $col->shorttext;
             $optioncol->description = [];
             $optioncol->description['text'] = $col->description;
             $optioncol->description['format'] = FORMAT_HTML;
-            $questiondata->options->cols[] = $optioncol;
+            $questiondata->options->cols[$col->id] = $optioncol;
         }
-
         $questiondata->options->weights = $question->weights;
         return $questiondata;
     }
@@ -141,32 +142,36 @@ class qtype_matrix_test_helper extends question_test_helper {
         $form->usedndui = $question->usedndui;
         $form->shuffleanswers = $question->shuffleanswers;
 
-        foreach ($question->rows as $index => $row) {
+        $rowindex = 0;
+        foreach ($question->rows as $row) {
             $form->rows_shorttext = $form->rows_shorttext ?? [];
-            $form->rows_shorttext[$index] = $row->shorttext;
+            $form->rows_shorttext[$rowindex] = $row->shorttext;
             $form->rows_description = $form->rows_description ?? [];
-            $form->rows_description[$index]['format'] = FORMAT_HTML;
-            $form->rows_description[$index]['text'] = $row->description;
+            $form->rows_description[$rowindex]['format'] = FORMAT_HTML;
+            $form->rows_description[$rowindex]['text'] = $row->description;
             $form->rows_feedback = $form->rows_feedback ?? [];
-            $form->rows_feedback[$index]['format'] = FORMAT_HTML;
-            $form->rows_feedback[$index]['text'] = $row->feedback;
+            $form->rows_feedback[$rowindex]['format'] = FORMAT_HTML;
+            $form->rows_feedback[$rowindex]['text'] = $row->feedback;
+            $rowindex++;
         }
-        foreach ($question->cols as $index => $col) {
+        $colindex = 0;
+        foreach ($question->cols as $col) {
             $form->cols_shorttext = $form->cols_shorttext ?? [];
-            $form->cols_shorttext[$index] = $col->shorttext;
+            $form->cols_shorttext[$colindex] = $col->shorttext;
             $form->cols_description = $form->cols_description ?? [];
-            $form->cols_description[$index]['format'] = FORMAT_HTML;
-            $form->cols_description[$index]['text'] = $col->description;
+            $form->cols_description[$colindex]['format'] = FORMAT_HTML;
+            $form->cols_description[$colindex]['text'] = $col->description;
+            $colindex++;
         }
-        foreach ($question->rows as $ri => $row) {
-            foreach ($question->cols as $ci => $col) {
-                $key = $question->key($ri, $ci);
-                if ($question->weights[$row->id][$col->id]) {
+        foreach (array_keys($question->rows) as $rowindex => $rowid) {
+            foreach (array_keys($question->cols) as $colindex => $colid) {
+                $key = $question->key($rowindex, $colindex);
+                if ($question->weights[$rowid][$colid]) {
                     if (!$question->multiple) {
-                        $form->{$key} = $ci;
+                        $form->{$key} = $colindex;
                         break;
                     } else {
-                        $form->{$key} = $question->weights[$row->id][$col->id];
+                        $form->{$key} = $question->weights[$rowid][$colid];
                     }
                 }
             }
@@ -190,10 +195,10 @@ class qtype_matrix_test_helper extends question_test_helper {
         $question = $this->init_default_matrix_question();
 
         $question->questiontext = 'default';
-        $question->weights[0][1] = 1;
-        $question->weights[1][1] = 1;
-        $question->weights[2][1] = 1;
-        $question->weights[3][1] = 1;
+        $question->weights[4][9] = 1;
+        $question->weights[5][9] = 1;
+        $question->weights[6][9] = 1;
+        $question->weights[7][9] = 1;
 
         return $question;
     }
@@ -238,14 +243,14 @@ class qtype_matrix_test_helper extends question_test_helper {
         $question->questiontext = 'multipletwocorrect';
 
         $question->multiple = true;
-        $question->weights[0][0] = 1;
-        $question->weights[0][1] = 1;
-        $question->weights[1][0] = 1;
-        $question->weights[1][1] = 1;
-        $question->weights[2][0] = 1;
-        $question->weights[2][1] = 1;
-        $question->weights[3][0] = 1;
-        $question->weights[3][1] = 1;
+        $question->weights[4][8] = 1;
+        $question->weights[4][9] = 1;
+        $question->weights[5][8] = 1;
+        $question->weights[5][9] = 1;
+        $question->weights[6][8] = 1;
+        $question->weights[6][9] = 1;
+        $question->weights[7][8] = 1;
+        $question->weights[7][9] = 1;
         return $question;
     }
     /**
@@ -271,9 +276,9 @@ class qtype_matrix_test_helper extends question_test_helper {
         $question->rows = $matrix->rows;
         $question->cols = $matrix->cols;
         $question->weights = array_fill(
-            0,
             4,
-            array_fill(0, 4, 0)
+            4,
+            array_fill(8, 4, 0)
         );
 
         return $question;
@@ -282,11 +287,11 @@ class qtype_matrix_test_helper extends question_test_helper {
     private function generate_matrix_question_matrix():stdClass {
         $matrix = (object) [];
         $matrix->rows = [];
-        for ($r = 0; $r < 4; $r++) {
+        for ($r = 4; $r < 8; $r++) {
             $matrix->rows[$r] = $this->generate_matrix_row_or_column($r, true);
         }
         $matrix->cols = [];
-        for ($c = 0; $c < 4; $c++) {
+        for ($c = 8; $c < 12; $c++) {
             $matrix->cols[$c] = $this->generate_matrix_row_or_column($c, false);
         }
         return $matrix;

@@ -122,19 +122,20 @@ class qtype_matrix_question_test extends advanced_testcase {
 
     public function test_answer():void {
         $question = qtype_matrix_test_helper::make_question('default');
-        $question->weights[1][2] = 1;
+        $this->initialize_order($question);
+        $question->weights[5][10] = 1;
         $this->assertTrue($question->answer(1, 2));
-        $question->weights[1][2] = 0;
+        $question->weights[5][10] = 0;
         $this->assertFalse($question->answer(1, 2));
     }
 
     public function test_weight():void {
         $question = qtype_matrix_test_helper::make_question('default');
-        $question->weights[1][2] = 1;
-        $this->assertEquals(1, $question->weight(1, 2));
+        $question->weights[5][10] = 1;
+        $this->assertEquals(1, $question->weight(5, 10));
         // Strangely, this is bad data, but works here.
-        $question->weights[1][2] = 2;
-        $this->assertEquals(2, $question->weight(1, 2));
+        $question->weights[5][10] = 2;
+        $this->assertEquals(2, $question->weight(5, 10));
     }
 
     public function test_start_attempt_noshuffle():void {
@@ -143,10 +144,10 @@ class qtype_matrix_question_test extends advanced_testcase {
         $question = qtype_matrix_test_helper::make_question('default');
         $question->shuffleanswers = false;
         $normalrows = [
-            1 => 'first',
-            2 => 'second',
-            3 => 'third',
-            4 => 'fourth'
+            4 => 'first',
+            5 => 'second',
+            6 => 'third',
+            7 => 'fourth'
         ];
         $rowids = array_keys($normalrows);
         $question->rows = $normalrows;
@@ -159,10 +160,10 @@ class qtype_matrix_question_test extends advanced_testcase {
         $question = qtype_matrix_test_helper::make_question('default');
         $question->shuffleanswers = true;
         $normalrows = [
-            1 => 'first',
-            2 => 'second',
-            3 => 'third',
-            4 => 'fourth'
+            4 => 'first',
+            5 => 'second',
+            6 => 'third',
+            7 => 'fourth'
         ];
         $rowids = array_keys($normalrows);
         $question->rows = $normalrows;
@@ -196,10 +197,10 @@ class qtype_matrix_question_test extends advanced_testcase {
         $question = qtype_matrix_test_helper::make_question('default');
         $question->shuffleanswers = true;
         $normalrows = [
-            1 => 'first',
-            2 => 'second',
-            3 => 'third',
-            4 => 'fourth'
+            4 => 'first',
+            5 => 'second',
+            6 => 'third',
+            7 => 'fourth'
         ];
         $question->rows = $normalrows;
         // TODO: We should probably not need to use Reflection...
@@ -222,18 +223,18 @@ class qtype_matrix_question_test extends advanced_testcase {
         $question = qtype_matrix_test_helper::make_question('default');
         $qa = new question_attempt_step();
         // In a normal process, each attempt will always have the first step initialized
-        $qa->set_qt_var($question::KEY_ROWS_ORDER, '1,2,3,4');
+        $qa->set_qt_var($question::KEY_ROWS_ORDER, '4,5,6,7');
         $mockedAttempt = $this->createStub('question_attempt');
         $mockedAttempt->method('get_step')->willReturn($qa);
         $order = $question->get_order($mockedAttempt);
-        $this->assertEquals([1,2,3,4], $order);
-        $qa->set_qt_var($question::KEY_ROWS_ORDER, '5,6,7,8');
+        $this->assertEquals([4,5,6,7], $order);
+        $qa->set_qt_var($question::KEY_ROWS_ORDER, '7,6,5,4');
         $order = $question->get_order($mockedAttempt);
-        $this->assertEquals([1,2,3,4], $order);
+        $this->assertEquals([4,5,6,7], $order);
         $question = qtype_matrix_test_helper::make_question('default');
-        $qa->set_qt_var($question::KEY_ROWS_ORDER, '5,6,7,8');
+        $qa->set_qt_var($question::KEY_ROWS_ORDER, '7,6,5,4');
         $order = $question->get_order($mockedAttempt);
-        $this->assertEquals([5,6,7,8], $order);
+        $this->assertEquals([7,6,5,4], $order);
     }
 
 // FIXME: This doesn't need to be tested as long as Matrix questions don't let the user save question hints.
@@ -445,49 +446,48 @@ class qtype_matrix_question_test extends advanced_testcase {
      */
     public function test_summarise_response(): void {
         $question = qtype_matrix_test_helper::make_question('default');
-        $this->initialize_order($question);
+        $order = $this->initialize_order($question);
 
         $answer = self::make_correct_answer($question);
         $summary = $question->summarise_response($answer);
-        foreach ($question->rows as $row) {
-            $key = $question->key($row->id);
-            if (isset($answer[$key])) {
-                $colid = $answer[$key];
-                $this->assertStringContainsString($row->shorttext.': '.$question->cols[$colid]->shorttext, $summary);
-            } else {
-                $this->assertStringNotContainsString($row->shorttext.': '.$question->cols[$colid]->shorttext, $summary);
-            }
-        }
+        $this->check_summary($question, $order, $answer, $summary);
+
         $answer = self::make_incomplete_wrong_answer($question);
         $summary = $question->summarise_response($answer);
-        foreach ($question->rows as $row) {
-            $key = $question->key($row->id);
-            if (isset($answer[$key])) {
-                $colid = $answer[$key];
-                $this->assertStringContainsString($row->shorttext.': '.$question->cols[$colid]->shorttext, $summary);
-            } else {
-                $this->assertStringNotContainsString($row->shorttext.': '.$question->cols[$colid]->shorttext, $summary);
-            }
-        }
+        $this->check_summary($question, $order, $answer, $summary);
 
         $question = qtype_matrix_test_helper::make_question('nondefault');
-        $this->initialize_order($question);
+        $order = $this->initialize_order($question);
 
         $answer = self::make_correct_answer($question);
         $summary = $question->summarise_response($answer);
-        foreach ($question->rows as $row) {
-            foreach ($question->cols as $col) {
-                $key = $question->key($row->id, $col->id);
-                if (isset($answer[$key])) {
-                    $this->assertStringContainsString($row->shorttext.': '.$col->shorttext, $summary);
-                } else {
-                    $this->assertStringNotContainsString($row->shorttext.': '.$col->shorttext, $summary);
-                }
-            }
-        }
-
+        $this->check_summary($question, $order, $answer, $summary);
     }
 
+    private function check_summary(qtype_matrix_question $question, array $order, array $answer, string $summary):void {
+        $indicedcols = array_keys($question->cols);
+        foreach ($order as $rowindex => $rowid) {
+            $row = $question->rows[$rowid];
+            $key = $question->multiple ? '' : $question->key($rowindex);
+            $shouldcolids = [];
+            foreach ($indicedcols as $colindex => $colid) {
+                $key = $question->multiple ? $question->key($rowindex, $colindex) : $key;
+                if (isset($answer[$key])) {
+                    $shouldcolids[] = $question->multiple ? $colid : $indicedcols[$answer[$key]];
+                }
+            }
+            $shouldcolids = array_unique($shouldcolids);
+            foreach ($shouldcolids as $shouldcolid) {
+                $this->assertStringContainsString(
+                    $row->shorttext . ': ' . $question->cols[$shouldcolid]->shorttext, $summary
+                );
+            }
+            $notcolids = array_diff($indicedcols, $shouldcolids);
+            foreach ($notcolids as $notcolid) {
+                $this->assertStringNotContainsString($row->shorttext.': '.$question->cols[$notcolid]->shorttext, $summary);
+            }
+        }
+    }
     /**
      * @covers ::get_expected_data
      * @return void
@@ -590,55 +590,55 @@ class qtype_matrix_question_test extends advanced_testcase {
         $this->initialize_order($question);
         $answer = self::make_correct_answer($question);
         $classifiedresponse = [
-            0 => new question_classified_response(1, $question->cols[1]->shorttext, 1),
-            1 => new question_classified_response(1, $question->cols[1]->shorttext, 1),
-            2 => new question_classified_response(1, $question->cols[1]->shorttext, 1),
-            3 => new question_classified_response(1, $question->cols[1]->shorttext, 1)
+            4 => new question_classified_response(9, $question->cols[9]->shorttext, 1),
+            5 => new question_classified_response(9, $question->cols[9]->shorttext, 1),
+            6 => new question_classified_response(9, $question->cols[9]->shorttext, 1),
+            7 => new question_classified_response(9, $question->cols[9]->shorttext, 1)
         ];
         $this->assertEquals($classifiedresponse, $question->classify_response($answer));
 
         $answer = self::make_incorrect_answer($question);
         $classifiedresponse = [
-            0 => new question_classified_response(3, $question->cols[3]->shorttext, 0),
-            1 => new question_classified_response(3, $question->cols[3]->shorttext, 0),
-            2 => new question_classified_response(3, $question->cols[3]->shorttext, 0),
-            3 => new question_classified_response(3, $question->cols[3]->shorttext, 0)
+            4 => new question_classified_response(11, $question->cols[11]->shorttext, 0),
+            5 => new question_classified_response(11, $question->cols[11]->shorttext, 0),
+            6 => new question_classified_response(11, $question->cols[11]->shorttext, 0),
+            7 => new question_classified_response(11, $question->cols[11]->shorttext, 0)
         ];
         $this->assertEquals($classifiedresponse, $question->classify_response($answer));
 
         $answer = self::make_one_row_wrong_answer($question);
         $classifiedresponse = [
-            0 => new question_classified_response(3, $question->cols[3]->shorttext, 0),
-            1 => new question_classified_response(1, $question->cols[1]->shorttext, 1),
-            2 => new question_classified_response(1, $question->cols[1]->shorttext, 1),
-            3 => new question_classified_response(1, $question->cols[1]->shorttext, 1)
+            4 => new question_classified_response(11, $question->cols[11]->shorttext, 0),
+            5 => new question_classified_response(9, $question->cols[9]->shorttext, 1),
+            6 => new question_classified_response(9, $question->cols[9]->shorttext, 1),
+            7 => new question_classified_response(9, $question->cols[9]->shorttext, 1)
         ];
         $this->assertEquals($classifiedresponse, $question->classify_response($answer));
 
         $answer = self::make_half_correct_answer($question);
         $classifiedresponse = [
-            0 => new question_classified_response(1, $question->cols[1]->shorttext, 1),
-            1 => new question_classified_response(1, $question->cols[1]->shorttext, 1),
-            2 => new question_classified_response(3, $question->cols[3]->shorttext, 0),
-            3 => new question_classified_response(3, $question->cols[3]->shorttext, 0)
+            4 => new question_classified_response(9, $question->cols[9]->shorttext, 1),
+            5 => new question_classified_response(9, $question->cols[9]->shorttext, 1),
+            6 => new question_classified_response(11, $question->cols[11]->shorttext, 0),
+            7 => new question_classified_response(11, $question->cols[11]->shorttext, 0)
         ];
         $this->assertEquals($classifiedresponse, $question->classify_response($answer));
 
         $answer = self::make_incomplete_partially_correct_answer($question);
         $classifiedresponse = [
-            0 => new question_classified_response(1, $question->cols[1]->shorttext, 1),
-            1 => new question_classified_response(1, $question->cols[1]->shorttext, 1),
-            2 => question_classified_response::no_response(),
-            3 => question_classified_response::no_response()
+            4 => new question_classified_response(9, $question->cols[9]->shorttext, 1),
+            5 => new question_classified_response(9, $question->cols[9]->shorttext, 1),
+            6 => question_classified_response::no_response(),
+            7 => question_classified_response::no_response()
         ];
         $this->assertEquals($classifiedresponse, $question->classify_response($answer));
 
         $answer = self::make_incomplete_wrong_answer($question);
         $classifiedresponse = [
-            0 => new question_classified_response(3, $question->cols[3]->shorttext, 0),
-            1 => new question_classified_response(3, $question->cols[3]->shorttext, 0),
-            2 => question_classified_response::no_response(),
-            3 => question_classified_response::no_response()
+            4 => new question_classified_response(11, $question->cols[11]->shorttext, 0),
+            5 => new question_classified_response(11, $question->cols[11]->shorttext, 0),
+            6 => question_classified_response::no_response(),
+            7 => question_classified_response::no_response()
         ];
         $this->assertEquals($classifiedresponse, $question->classify_response($answer));
 
@@ -646,65 +646,65 @@ class qtype_matrix_question_test extends advanced_testcase {
         $this->initialize_order($question);
         $answer = self::make_correct_answer($question);
         $classifiedresponse = [
-            0 => [1 => new question_classified_response(1, $question->cols[1]->shorttext, 0.25)],
-            1 => [1 => new question_classified_response(1, $question->cols[1]->shorttext, 0.25)],
-            2 => [1 => new question_classified_response(1, $question->cols[1]->shorttext, 0.25)],
-            3 => [1 => new question_classified_response(1, $question->cols[1]->shorttext, 0.25)]
+            4 => [9 => new question_classified_response(9, $question->cols[9]->shorttext, 0.25)],
+            5 => [9 => new question_classified_response(9, $question->cols[9]->shorttext, 0.25)],
+            6 => [9 => new question_classified_response(9, $question->cols[9]->shorttext, 0.25)],
+            7 => [9 => new question_classified_response(9, $question->cols[9]->shorttext, 0.25)]
         ];
         $this->assertEquals($classifiedresponse, $question->classify_response($answer));
 
         $answer = self::make_incorrect_answer($question);
         $classifiedresponse = [
-            0 => [3 => new question_classified_response(3, $question->cols[3]->shorttext, 0)],
-            1 => [3 => new question_classified_response(3, $question->cols[3]->shorttext, 0)],
-            2 => [3 => new question_classified_response(3, $question->cols[3]->shorttext, 0)],
-            3 => [3 => new question_classified_response(3, $question->cols[3]->shorttext, 0)]
+            4 => [11 => new question_classified_response(11, $question->cols[11]->shorttext, 0)],
+            5 => [11 => new question_classified_response(11, $question->cols[11]->shorttext, 0)],
+            6 => [11 => new question_classified_response(11, $question->cols[11]->shorttext, 0)],
+            7 => [11 => new question_classified_response(11, $question->cols[11]->shorttext, 0)]
         ];
         $this->assertEquals($classifiedresponse, $question->classify_response($answer));
 
         $answer = self::make_one_row_wrong_answer($question);
         $classifiedresponse = [
-            0 => [3 => new question_classified_response(3, $question->cols[3]->shorttext, 0)],
-            1 => [1 => new question_classified_response(1, $question->cols[1]->shorttext, 0.25)],
-            2 => [1 => new question_classified_response(1, $question->cols[1]->shorttext, 0.25)],
-            3 => [1 => new question_classified_response(1, $question->cols[1]->shorttext, 0.25)]
+            4 => [11 => new question_classified_response(11, $question->cols[11]->shorttext, 0)],
+            5 => [9 => new question_classified_response(9, $question->cols[9]->shorttext, 0.25)],
+            6 => [9 => new question_classified_response(9, $question->cols[9]->shorttext, 0.25)],
+            7 => [9 => new question_classified_response(9, $question->cols[9]->shorttext, 0.25)]
         ];
         $this->assertEquals($classifiedresponse, $question->classify_response($answer));
 
         $answer = self::make_half_correct_answer($question);
         $classifiedresponse = [
-            0 => [1 => new question_classified_response(1, $question->cols[1]->shorttext, 0.25)],
-            1 => [1 => new question_classified_response(1, $question->cols[1]->shorttext, 0.25)],
-            2 => [3 => new question_classified_response(3, $question->cols[3]->shorttext, 0)],
-            3 => [3 => new question_classified_response(3, $question->cols[3]->shorttext, 0)]
+            4 => [9 => new question_classified_response(9, $question->cols[9]->shorttext, 0.25)],
+            5 => [9 => new question_classified_response(9, $question->cols[9]->shorttext, 0.25)],
+            6 => [11 => new question_classified_response(11, $question->cols[11]->shorttext, 0)],
+            7 => [11 => new question_classified_response(11, $question->cols[11]->shorttext, 0)]
         ];
         $this->assertEquals($classifiedresponse, $question->classify_response($answer));
 
         $answer = self::make_incomplete_partially_correct_answer($question);
         $classifiedresponse = [
-            0 => [1 => new question_classified_response(1, $question->cols[1]->shorttext, 0.25)],
-            1 => [1 => new question_classified_response(1, $question->cols[1]->shorttext, 0.25)],
-            2 => question_classified_response::no_response(),
-            3 => question_classified_response::no_response()
+            4 => [9 => new question_classified_response(9, $question->cols[9]->shorttext, 0.25)],
+            5 => [9 => new question_classified_response(9, $question->cols[9]->shorttext, 0.25)],
+            6 => question_classified_response::no_response(),
+            7 => question_classified_response::no_response()
         ];
         $this->assertEquals($classifiedresponse, $question->classify_response($answer));
 
         $answer = self::make_incomplete_wrong_answer($question);
         $classifiedresponse = [
-            0 => [3 => new question_classified_response(3, $question->cols[3]->shorttext, 0)],
-            1 => [3 => new question_classified_response(3, $question->cols[3]->shorttext, 0)],
-            2 => question_classified_response::no_response(),
-            3 => question_classified_response::no_response()
+            4 => [11 => new question_classified_response(11, $question->cols[11]->shorttext, 0)],
+            5 => [11 => new question_classified_response(11, $question->cols[11]->shorttext, 0)],
+            6 => question_classified_response::no_response(),
+            7 => question_classified_response::no_response()
         ];
         $this->assertEquals($classifiedresponse, $question->classify_response($answer));
     }
 
-    private function initialize_order(qtype_matrix_question $question):void {
+    private function initialize_order(qtype_matrix_question $question):array {
         $qa = new question_attempt_step();
-        $qa->set_qt_var($question::KEY_ROWS_ORDER, '0,1,2,3');
+        $qa->set_qt_var($question::KEY_ROWS_ORDER, '4,5,6,7');
         $mockedAttempt = $this->createStub('question_attempt');
         $mockedAttempt->method('get_step')->willReturn($qa);
-        $question->get_order($mockedAttempt);
+        return $question->get_order($mockedAttempt);
     }
 
     /**

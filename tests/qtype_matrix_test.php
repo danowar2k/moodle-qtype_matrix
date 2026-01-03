@@ -284,12 +284,16 @@ class qtype_matrix_test extends advanced_testcase {
             $foundrowids[] = $weightrecord->rowid;
             $foundcombos[] = [$weightrecord->rowid, $weightrecord->colid];
         }
-        foreach ($typequestion->weights as $rowindex => $row) {
-            foreach ($row as $colindex => $colvalue) {
+        $indicedtestquestionrows = array_keys($typequestion->rows);
+        $indicedtestquestioncols = array_keys($typequestion->cols);
+        foreach ($typequestion->weights as $rowid => $row) {
+            $savedrowid = $indicedrowids[array_search($rowid, $indicedtestquestionrows)];
+            foreach ($row as $colid => $colvalue) {
+                $savedcolid = $indicedcolids[array_search($colid, $indicedtestquestioncols)];
                 if ($colvalue > 0) {
-                    $this->assertContainsEquals([$indicedrowids[$rowindex], $indicedcolids[$colindex]], $foundcombos);
+                    $this->assertContainsEquals([$savedrowid, $savedcolid], $foundcombos);
                 } else {
-                    $this->assertNotContainsEquals([$indicedrowids[$rowindex], $indicedcolids[$colindex]], $foundcombos);
+                    $this->assertNotContainsEquals([$savedrowid, $savedcolid], $foundcombos);
                 }
             }
         }
