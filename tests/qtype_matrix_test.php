@@ -16,7 +16,6 @@
 
 namespace qtype_matrix;
 
-use qtype_matrix\local\question_cleaner;
 use qtype_matrix\local\qtype_matrix_grading;
 use qtype_matrix_test_helper;
 use qtype_matrix;
@@ -29,11 +28,8 @@ use test_question_maker;
 defined('MOODLE_INTERNAL') || die();
 
 global $CFG;
-require_once $CFG->dirroot . '/question/engine/tests/helpers.php';
-require_once $CFG->dirroot . '/question/format/xml/format.php';
-require_once $CFG->dirroot . '/question/type/matrix/question.php';
-require_once $CFG->dirroot . '/question/type/matrix/questiontype.php';
 require_once $CFG->dirroot . '/question/type/matrix/tests/helper.php';
+require_once $CFG->dirroot . '/question/format/xml/format.php';
 
 /**
  * Unit tests for the matrix question definition class.
@@ -517,9 +513,9 @@ class qtype_matrix_test extends advanced_testcase {
         $fromform = new \stdClass();
         $fromform = $this->qtype->import_from_xml($xml['question'], $fromform, $qformat);
         $this->assertEquals(qtype_matrix_grading::default_grading()->get_name(), $fromform->grademethod);
-        $this->assertEquals(question_cleaner::DEFAULT_MULTIPLE, $fromform->multiple);
-        $this->assertEquals(question_cleaner::DEFAULT_USEDNDUI, $fromform->usedndui);
-        $this->assertEquals(question_cleaner::DEFAULT_SHUFFLEANSWERS, $fromform->shuffleanswers);
+        $this->assertEquals(qtype_matrix::DEFAULT_MULTIPLE, $fromform->multiple);
+        $this->assertEquals(qtype_matrix::DEFAULT_USEDNDUI, $fromform->usedndui);
+        $this->assertEquals(qtype_matrix::DEFAULT_SHUFFLEANSWERS, $fromform->shuffleanswers);
     }
 
     // FIXME: There should probably a question with invalid values for everything

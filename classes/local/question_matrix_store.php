@@ -16,7 +16,14 @@
 
 namespace qtype_matrix\local;
 
+defined('MOODLE_INTERNAL') || die();
+
+global $CFG;
+
+require_once $CFG->dirroot . '/question/type/matrix/questiontype.php';
+
 use dml_exception;
+use qtype_matrix;
 use stdClass;
 
 class question_matrix_store {
@@ -40,7 +47,7 @@ class question_matrix_store {
         global $DB;
         $result = $DB->get_record(self::TABLE_QUESTION_MATRIX, ['questionid' => $questionid]);
         if ($result) {
-            $result = question_cleaner::clean_data($result);
+            $result = qtype_matrix::clean_data($result);
         }
         return $result;
     }
