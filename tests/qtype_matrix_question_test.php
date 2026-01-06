@@ -38,6 +38,7 @@ require_once $CFG->dirroot . '/question/type/matrix/question.php';
 require_once $CFG->dirroot . '/question/type/matrix/tests/helper.php';
 
 /**
+ * @covers \qtype_matrix_question
  * Unit tests for the matrix question definition class.
  *
  */
@@ -243,88 +244,80 @@ class qtype_matrix_question_test extends advanced_testcase {
 //    }
 
     /**
+     * Tests only the state part, the grades are tested in their respective grading classes.
      * @dataProvider grade_response_data_provider
-     * @covers ::get_expected_data
+     * @param string $questiontype
+     * @param string $grademethod
+     * @param question_state $expectedstateforcorrect
+     * @param question_state $expectedstateforincorrect
+     * @param question_state $expectedstateforonerowwrong
+     * @param question_state $expectedstateforcompletewithrowvariations
+     * @param question_state $expectedstateforincompletepartiallycorrect
+     * @param question_state $expectedstateforincompleteincorrect
      * @return void
      */
     public function test_grade_response(
         string $questiontype,
         string $grademethod,
-        float  $correctgrade,
-        float  $incorrectgrade,
-        float  $onerowwronggrade,
-        float  $halfcorrectgrade,
-        float  $incompletepartiallycorrectgrade,
-        float  $incompleteincorrectgrade
+        question_state $expectedstateforcorrect,
+        question_state $expectedstateforincorrect,
+        question_state $expectedstateforonerowwrong,
+        question_state $expectedstateforcompletewithrowvariations,
+        question_state $expectedstateforincompletepartiallycorrect,
+        question_state $expectedstateforincompleteincorrect,
     ): void {
         $question = qtype_matrix_test_helper::make_question($questiontype);
         $this->initialize_order($question);
         $question->grademethod = $grademethod;
 
-        $correctanswer = self::make_correct_answer($question);
-        $grade = $question->grade_response($correctanswer);
-        $this->assertEquals($this->get_expected_grade($correctgrade), $grade);
+        $correctanswer = qtype_matrix_test_helper::make_correct_answer($question);
+        $state = $question->grade_response($correctanswer)[1];
+        $this->assertEquals($expectedstateforcorrect, $state);
 
-        $incorrectanswer = self::make_incorrect_answer($question);
-        $grade = $question->grade_response($incorrectanswer);
-        $this->assertEquals($this->get_expected_grade($incorrectgrade), $grade);
+        $incorrectanswer = qtype_matrix_test_helper::make_incorrect_answer($question);
+        $state = $question->grade_response($incorrectanswer)[1];
+        $this->assertEquals($expectedstateforincorrect, $state);
 
-        $onerowwronganswer = self::make_one_row_wrong_answer($question);
-        $grade = $question->grade_response($onerowwronganswer);
-        $this->assertEquals($this->get_expected_grade($onerowwronggrade), $grade);
+        $onerowwronganswer = qtype_matrix_test_helper::make_first_row_wrong_answer($question);
+        $state = $question->grade_response($onerowwronganswer)[1];
+        $this->assertEquals($expectedstateforonerowwrong, $state);
 
-        $halfcorrectanswer = self::make_half_correct_answer($question);
-        $grade = $question->grade_response($halfcorrectanswer);
-        $this->assertEquals($this->get_expected_grade($halfcorrectgrade), $grade);
+        $completevariationsanswer = qtype_matrix_test_helper::make_complete_with_variations_answer($question);
+        $state = $question->grade_response($completevariationsanswer)[1];
+        $this->assertEquals($expectedstateforcompletewithrowvariations, $state);
 
-        $incompletepartiallycorrectanswer = self::make_incomplete_partially_correct_answer($question);
-        $grade = $question->grade_response($incompletepartiallycorrectanswer);
-        $this->assertEquals($this->get_expected_grade($incompletepartiallycorrectgrade), $grade);
+        $incompletepartiallycorrectanswer = qtype_matrix_test_helper::make_incomplete_partially_correct_answer($question);
+        $state = $question->grade_response($incompletepartiallycorrectanswer)[1];
+        $this->assertEquals($expectedstateforincompletepartiallycorrect, $state);
 
-        $incompletewronganswer = self::make_incomplete_wrong_answer($question);
-        $grade = $question->grade_response($incompletewronganswer);
-        $this->assertEquals($this->get_expected_grade($incompleteincorrectgrade), $grade);
+        $incompletewronganswer = qtype_matrix_test_helper::make_incomplete_wrong_answer($question);
+        $state = $question->grade_response($incompletewronganswer)[1];
+        $this->assertEquals($expectedstateforincompleteincorrect, $state);
     }
 
-    private function get_expected_grade(float $gradenumber):array {
-        if ($gradenumber == 0) {
-            $state = question_state::$gradedwrong;
-        } else if ($gradenumber == 1) {
-            $state = question_state::$gradedright;
-        } else {
-            $state = question_state::$gradedpartial;
-        }
-        return [$gradenumber, $state];
-    }
     /**
      * Provides data for test_grade_response().
      *
      * @return array of data for function
      */
     public static function grade_response_data_provider(): array {
-        // correct, one row wrong, incorrect, half correct, incomplete partially correct, incomplete wrong
+        // correct, incorrect, one row wrong, complete with row variations, incomplete partially correct, incomplete wrong
+        $r = question_state::$gradedright;
+        $w = question_state::$gradedwrong;
+        $p = question_state::$gradedpartial;
         return [
-            'Default question, kprime grading' => ['default', kprime::get_name(), 1, 0, 0, 0, 0, 0],
-            'Default question, kany grading' => ['default', kany::get_name(), 1, 0, 0.5, 0, 0, 0],
-            'Default question, all grading' => ['default', all::get_name(), 1, 0, 0.75, 0.5, 0.5, 0],
-            'Default question, difference grading' => ['nondefault', difference::get_name(), 1, 0, 0.75, 0.5, 0.5, 0],
-            'Nondefault question, kprime grading' => ['nondefault', kprime::get_name(), 1, 0, 0, 0, 0, 0],
-            'Nondefault question, kany grading' => ['nondefault', kany::get_name(), 1, 0, 0.5, 0, 0, 0],
-            'Nondefault question, all grading' => ['nondefault', all::get_name(), 1, 0, 0.75, 0.5, 0.5, 0],
-            'Nondefault question, difference grading' => ['nondefault', difference::get_name(), 1, 0, 0.75, 0.5, 0.5, 0],
-            'multipletwocorrect question, kprime grading' => ['multipletwocorrect', kprime::get_name(), 1, 0, 0, 0, 0, 0],
-            'multipletwocorrect question, kany grading' => ['multipletwocorrect', kany::get_name(), 1, 0, 0.5, 0, 0, 0],
-            'multipletwocorrect question, all grading' => ['multipletwocorrect', all::get_name(), 1, 0, 0.75, 0.25, 0.25, 0],
-            'multipletwocorrect question, difference grading' => [
-                'multipletwocorrect',
-                difference::get_name(),
-                1,
-                0,
-                0.75,
-                0.6944444444444444,
-                0.4722222222222222,
-                0
-            ],
+            'Default question, kprime grading' => ['default', kprime::get_name(), $r, $w, $w, $w, $w, $w],
+            'Default question, kany grading' => ['default', kany::get_name(), $r, $w, $p, $w, $w, $w],
+            'Default question, all grading' => ['default', all::get_name(), $r, $w, $p, $p, $p, $w],
+            'Default question, difference grading' => ['default', difference::get_name(), $r, $w, $p, $p, $p, $w],
+            'Nondefault question, kprime grading' => ['nondefault', kprime::get_name(), $r, $w, $w, $w, $w, $w],
+            'Nondefault question, kany grading' => ['nondefault', kany::get_name(), $r, $w, $p, $w, $w, $w],
+            'Nondefault question, all grading' => ['nondefault', all::get_name(), $r, $w, $p, $p, $p, $w],
+            'Nondefault question, difference grading' => ['nondefault', difference::get_name(), $r, $w, $p, $p, $p, $w],
+            'multipletwocorrect question, kprime grading' => ['multipletwocorrect', kprime::get_name(), $r, $w, $w, $w, $w, $w],
+            'multipletwocorrect question, kany grading' => ['multipletwocorrect', kany::get_name(), $r, $w, $p, $w, $w, $w],
+            'multipletwocorrect question, all grading' => ['multipletwocorrect', all::get_name(), $r, $w, $p, $p, $p, $w],
+            'multipletwocorrect question, difference grading' => ['multipletwocorrect', difference::get_name(), $r, $w, $p, $p, $p, $w]
         ];
     }
     /**
@@ -338,27 +331,27 @@ class qtype_matrix_question_test extends advanced_testcase {
         $this->assertFalse($question->is_complete_response($answer));
         $this->assertNotNull($question->get_validation_error($answer));
 
-        $answer = self::make_correct_answer($question);
+        $answer = qtype_matrix_test_helper::make_correct_answer($question);
         $this->assertTrue($question->is_complete_response($answer));
         $this->assertNull($question->get_validation_error($answer));
 
-        $answer = self::make_incorrect_answer($question);
+        $answer = qtype_matrix_test_helper::make_incorrect_answer($question);
         $this->assertTrue($question->is_complete_response($answer));
         $this->assertNull($question->get_validation_error($answer));
 
-        $answer = self::make_one_row_wrong_answer($question);
+        $answer = qtype_matrix_test_helper::make_first_row_wrong_answer($question);
         $this->assertTrue($question->is_complete_response($answer));
         $this->assertNull($question->get_validation_error($answer));
 
-        $answer = self::make_half_correct_answer($question);
+        $answer = qtype_matrix_test_helper::make_complete_with_variations_answer($question);
         $this->assertTrue($question->is_complete_response($answer));
         $this->assertNull($question->get_validation_error($answer));
 
-        $answer = self::make_incomplete_partially_correct_answer($question);
+        $answer = qtype_matrix_test_helper::make_incomplete_partially_correct_answer($question);
         $this->assertFalse($question->is_complete_response($answer));
         $this->assertNotNull($question->get_validation_error($answer));
 
-        $answer = self::make_incomplete_wrong_answer($question);
+        $answer = qtype_matrix_test_helper::make_incomplete_wrong_answer($question);
         $this->assertFalse($question->is_complete_response($answer));
         $this->assertNotNull($question->get_validation_error($answer));
 
@@ -368,22 +361,22 @@ class qtype_matrix_question_test extends advanced_testcase {
         $answer = [];
         $this->assertTrue($question->is_complete_response($answer));
 
-        $answer = self::make_correct_answer($question);
+        $answer = qtype_matrix_test_helper::make_correct_answer($question);
         $this->assertTrue($question->is_complete_response($answer));
 
-        $answer = self::make_incorrect_answer($question);
+        $answer = qtype_matrix_test_helper::make_incorrect_answer($question);
         $this->assertTrue($question->is_complete_response($answer));
 
-        $answer = self::make_one_row_wrong_answer($question);
+        $answer = qtype_matrix_test_helper::make_first_row_wrong_answer($question);
         $this->assertTrue($question->is_complete_response($answer));
 
-        $answer = self::make_half_correct_answer($question);
+        $answer = qtype_matrix_test_helper::make_complete_with_variations_answer($question);
         $this->assertTrue($question->is_complete_response($answer));
 
-        $answer = self::make_incomplete_partially_correct_answer($question);
+        $answer = qtype_matrix_test_helper::make_incomplete_partially_correct_answer($question);
         $this->assertTrue($question->is_complete_response($answer));
 
-        $answer = self::make_incomplete_wrong_answer($question);
+        $answer = qtype_matrix_test_helper::make_incomplete_wrong_answer($question);
         $this->assertTrue($question->is_complete_response($answer));
 
     }
@@ -391,31 +384,31 @@ class qtype_matrix_question_test extends advanced_testcase {
     public function test_get_num_selected_choices():void {
         $question = qtype_matrix_test_helper::make_question('default');
 
-        $answer = self::make_correct_answer($question);
+        $answer = qtype_matrix_test_helper::make_correct_answer($question);
         $this->assertEquals(count($question->rows), $question->get_num_selected_choices($answer));
-        $answer = self::make_incorrect_answer($question);
+        $answer = qtype_matrix_test_helper::make_incorrect_answer($question);
         $this->assertEquals(count($question->rows), $question->get_num_selected_choices($answer));
-        $answer = self::make_one_row_wrong_answer($question);
+        $answer = qtype_matrix_test_helper::make_first_row_wrong_answer($question);
         $this->assertEquals(count($question->rows), $question->get_num_selected_choices($answer));
-        $answer = self::make_half_correct_answer($question);
+        $answer = qtype_matrix_test_helper::make_complete_with_variations_answer($question);
         $this->assertEquals(count($question->rows), $question->get_num_selected_choices($answer));
-        $answer = self::make_incomplete_partially_correct_answer($question);
+        $answer = qtype_matrix_test_helper::make_incomplete_partially_correct_answer($question);
         $this->assertEquals(count($question->rows) - 2, $question->get_num_selected_choices($answer));
-        $answer = self::make_incomplete_wrong_answer($question);
+        $answer = qtype_matrix_test_helper::make_incomplete_wrong_answer($question);
         $this->assertEquals(count($question->rows) - 2, $question->get_num_selected_choices($answer));
 
         $question = qtype_matrix_test_helper::make_question('multipletwocorrect');
-        $answer = self::make_correct_answer($question);
+        $answer = qtype_matrix_test_helper::make_correct_answer($question);
         $this->assertEquals(8, $question->get_num_selected_choices($answer));
-        $answer = self::make_incorrect_answer($question);
+        $answer = qtype_matrix_test_helper::make_incorrect_answer($question);
         $this->assertEquals(4, $question->get_num_selected_choices($answer));
-        $answer = self::make_one_row_wrong_answer($question);
+        $answer = qtype_matrix_test_helper::make_first_row_wrong_answer($question);
         $this->assertEquals(7, $question->get_num_selected_choices($answer));
-        $answer = self::make_half_correct_answer($question);
+        $answer = qtype_matrix_test_helper::make_complete_with_variations_answer($question);
         $this->assertEquals(6, $question->get_num_selected_choices($answer));
-        $answer = self::make_incomplete_partially_correct_answer($question);
+        $answer = qtype_matrix_test_helper::make_incomplete_partially_correct_answer($question);
         $this->assertEquals(4, $question->get_num_selected_choices($answer));
-        $answer = self::make_incomplete_wrong_answer($question);
+        $answer = qtype_matrix_test_helper::make_incomplete_wrong_answer($question);
         $this->assertEquals(2, $question->get_num_selected_choices($answer));
     }
 
@@ -423,17 +416,17 @@ class qtype_matrix_question_test extends advanced_testcase {
         $question = qtype_matrix_test_helper::make_question('default');
         foreach (qtype_matrix_grading::VALID_GRADINGS as $validgrading) {
             $question->grademethod = $validgrading;
-            $answer = self::make_correct_answer($question);
+            $answer = qtype_matrix_test_helper::make_correct_answer($question);
             $this->assertTrue($question->is_gradable_response($answer));
-            $answer = self::make_incorrect_answer($question);
+            $answer = qtype_matrix_test_helper::make_incorrect_answer($question);
             $this->assertTrue($question->is_gradable_response($answer));
-            $answer = self::make_one_row_wrong_answer($question);
+            $answer = qtype_matrix_test_helper::make_first_row_wrong_answer($question);
             $this->assertTrue($question->is_gradable_response($answer));
-            $answer = self::make_half_correct_answer($question);
+            $answer = qtype_matrix_test_helper::make_complete_with_variations_answer($question);
             $this->assertTrue($question->is_gradable_response($answer));
-            $answer = self::make_incomplete_partially_correct_answer($question);
+            $answer = qtype_matrix_test_helper::make_incomplete_partially_correct_answer($question);
             $this->assertTrue($question->is_gradable_response($answer));
-            $answer = self::make_incomplete_wrong_answer($question);
+            $answer = qtype_matrix_test_helper::make_incomplete_wrong_answer($question);
             $this->assertTrue($question->is_gradable_response($answer));
             $answer = [];
             $this->assertFalse($question->is_gradable_response($answer));
@@ -448,18 +441,18 @@ class qtype_matrix_question_test extends advanced_testcase {
         $question = qtype_matrix_test_helper::make_question('default');
         $order = $this->initialize_order($question);
 
-        $answer = self::make_correct_answer($question);
+        $answer = qtype_matrix_test_helper::make_correct_answer($question);
         $summary = $question->summarise_response($answer);
         $this->check_summary($question, $order, $answer, $summary);
 
-        $answer = self::make_incomplete_wrong_answer($question);
+        $answer = qtype_matrix_test_helper::make_incomplete_wrong_answer($question);
         $summary = $question->summarise_response($answer);
         $this->check_summary($question, $order, $answer, $summary);
 
         $question = qtype_matrix_test_helper::make_question('nondefault');
         $order = $this->initialize_order($question);
 
-        $answer = self::make_correct_answer($question);
+        $answer = qtype_matrix_test_helper::make_correct_answer($question);
         $summary = $question->summarise_response($answer);
         $this->check_summary($question, $order, $answer, $summary);
     }
@@ -497,10 +490,10 @@ class qtype_matrix_question_test extends advanced_testcase {
         $this->initialize_order($question);
 
         $correct = $question->get_correct_response();
-        $answer = self::make_correct_answer($question);
+        $answer = qtype_matrix_test_helper::make_correct_answer($question);
         $this->assertTrue($question->is_same_response($correct, $answer));
 
-        $answer = self::make_incorrect_answer($question);
+        $answer = qtype_matrix_test_helper::make_incorrect_answer($question);
         $this->assertFalse($question->is_same_response($correct, $answer));
 
         $nextanswer = $answer;
@@ -515,10 +508,10 @@ class qtype_matrix_question_test extends advanced_testcase {
         $this->initialize_order($question);
 
         $correct = $question->get_correct_response();
-        $answer = self::make_correct_answer($question);
+        $answer = qtype_matrix_test_helper::make_correct_answer($question);
         $this->assertTrue($question->is_same_response($correct, $answer));
 
-        $answer = self::make_incorrect_answer($question);
+        $answer = qtype_matrix_test_helper::make_incorrect_answer($question);
         $this->assertFalse($question->is_same_response($correct, $answer));
 
         $nextanswer = $answer;
@@ -544,19 +537,19 @@ class qtype_matrix_question_test extends advanced_testcase {
         $question = qtype_matrix_test_helper::make_question('default');
         $this->initialize_order($question);
 
-        $answer = self::make_correct_answer($question);
+        $answer = qtype_matrix_test_helper::make_correct_answer($question);
         $this->assertEquals($answer, $question->get_correct_response());
 
-        $answer = self::make_incorrect_answer($question);
+        $answer = qtype_matrix_test_helper::make_incorrect_answer($question);
         $this->assertNotEquals($answer, $question->get_correct_response());
 
         $question = qtype_matrix_test_helper::make_question('nondefault');
         $this->initialize_order($question);
 
-        $answer = self::make_correct_answer($question);
+        $answer = qtype_matrix_test_helper::make_correct_answer($question);
         $this->assertEquals($answer, $question->get_correct_response());
 
-        $answer = self::make_incorrect_answer($question);
+        $answer = qtype_matrix_test_helper::make_incorrect_answer($question);
         $this->assertNotEquals($answer, $question->get_correct_response());
     }
 
@@ -588,7 +581,7 @@ class qtype_matrix_question_test extends advanced_testcase {
     public function test_classify_response():void {
         $question = qtype_matrix_test_helper::make_question('default');
         $this->initialize_order($question);
-        $answer = self::make_correct_answer($question);
+        $answer = qtype_matrix_test_helper::make_correct_answer($question);
         $classifiedresponse = [
             4 => new question_classified_response(9, $question->cols[9]->shorttext, 1),
             5 => new question_classified_response(9, $question->cols[9]->shorttext, 1),
@@ -597,7 +590,7 @@ class qtype_matrix_question_test extends advanced_testcase {
         ];
         $this->assertEquals($classifiedresponse, $question->classify_response($answer));
 
-        $answer = self::make_incorrect_answer($question);
+        $answer = qtype_matrix_test_helper::make_incorrect_answer($question);
         $classifiedresponse = [
             4 => new question_classified_response(11, $question->cols[11]->shorttext, 0),
             5 => new question_classified_response(11, $question->cols[11]->shorttext, 0),
@@ -606,7 +599,7 @@ class qtype_matrix_question_test extends advanced_testcase {
         ];
         $this->assertEquals($classifiedresponse, $question->classify_response($answer));
 
-        $answer = self::make_one_row_wrong_answer($question);
+        $answer = qtype_matrix_test_helper::make_first_row_wrong_answer($question);
         $classifiedresponse = [
             4 => new question_classified_response(11, $question->cols[11]->shorttext, 0),
             5 => new question_classified_response(9, $question->cols[9]->shorttext, 1),
@@ -615,7 +608,7 @@ class qtype_matrix_question_test extends advanced_testcase {
         ];
         $this->assertEquals($classifiedresponse, $question->classify_response($answer));
 
-        $answer = self::make_half_correct_answer($question);
+        $answer = qtype_matrix_test_helper::make_complete_with_variations_answer($question);
         $classifiedresponse = [
             4 => new question_classified_response(9, $question->cols[9]->shorttext, 1),
             5 => new question_classified_response(9, $question->cols[9]->shorttext, 1),
@@ -624,7 +617,7 @@ class qtype_matrix_question_test extends advanced_testcase {
         ];
         $this->assertEquals($classifiedresponse, $question->classify_response($answer));
 
-        $answer = self::make_incomplete_partially_correct_answer($question);
+        $answer = qtype_matrix_test_helper::make_incomplete_partially_correct_answer($question);
         $classifiedresponse = [
             4 => new question_classified_response(9, $question->cols[9]->shorttext, 1),
             5 => new question_classified_response(9, $question->cols[9]->shorttext, 1),
@@ -633,7 +626,7 @@ class qtype_matrix_question_test extends advanced_testcase {
         ];
         $this->assertEquals($classifiedresponse, $question->classify_response($answer));
 
-        $answer = self::make_incomplete_wrong_answer($question);
+        $answer = qtype_matrix_test_helper::make_incomplete_wrong_answer($question);
         $classifiedresponse = [
             4 => new question_classified_response(11, $question->cols[11]->shorttext, 0),
             5 => new question_classified_response(11, $question->cols[11]->shorttext, 0),
@@ -644,7 +637,7 @@ class qtype_matrix_question_test extends advanced_testcase {
 
         $question = qtype_matrix_test_helper::make_question('nondefault');
         $this->initialize_order($question);
-        $answer = self::make_correct_answer($question);
+        $answer = qtype_matrix_test_helper::make_correct_answer($question);
         $classifiedresponse = [
             4 => [9 => new question_classified_response(9, $question->cols[9]->shorttext, 0.25)],
             5 => [9 => new question_classified_response(9, $question->cols[9]->shorttext, 0.25)],
@@ -653,7 +646,7 @@ class qtype_matrix_question_test extends advanced_testcase {
         ];
         $this->assertEquals($classifiedresponse, $question->classify_response($answer));
 
-        $answer = self::make_incorrect_answer($question);
+        $answer = qtype_matrix_test_helper::make_incorrect_answer($question);
         $classifiedresponse = [
             4 => [11 => new question_classified_response(11, $question->cols[11]->shorttext, 0)],
             5 => [11 => new question_classified_response(11, $question->cols[11]->shorttext, 0)],
@@ -662,7 +655,7 @@ class qtype_matrix_question_test extends advanced_testcase {
         ];
         $this->assertEquals($classifiedresponse, $question->classify_response($answer));
 
-        $answer = self::make_one_row_wrong_answer($question);
+        $answer = qtype_matrix_test_helper::make_first_row_wrong_answer($question);
         $classifiedresponse = [
             4 => [11 => new question_classified_response(11, $question->cols[11]->shorttext, 0)],
             5 => [9 => new question_classified_response(9, $question->cols[9]->shorttext, 0.25)],
@@ -671,7 +664,7 @@ class qtype_matrix_question_test extends advanced_testcase {
         ];
         $this->assertEquals($classifiedresponse, $question->classify_response($answer));
 
-        $answer = self::make_half_correct_answer($question);
+        $answer = qtype_matrix_test_helper::make_complete_with_variations_answer($question);
         $classifiedresponse = [
             4 => [9 => new question_classified_response(9, $question->cols[9]->shorttext, 0.25)],
             5 => [9 => new question_classified_response(9, $question->cols[9]->shorttext, 0.25)],
@@ -680,7 +673,7 @@ class qtype_matrix_question_test extends advanced_testcase {
         ];
         $this->assertEquals($classifiedresponse, $question->classify_response($answer));
 
-        $answer = self::make_incomplete_partially_correct_answer($question);
+        $answer = qtype_matrix_test_helper::make_incomplete_partially_correct_answer($question);
         $classifiedresponse = [
             4 => [9 => new question_classified_response(9, $question->cols[9]->shorttext, 0.25)],
             5 => [9 => new question_classified_response(9, $question->cols[9]->shorttext, 0.25)],
@@ -689,7 +682,7 @@ class qtype_matrix_question_test extends advanced_testcase {
         ];
         $this->assertEquals($classifiedresponse, $question->classify_response($answer));
 
-        $answer = self::make_incomplete_wrong_answer($question);
+        $answer = qtype_matrix_test_helper::make_incomplete_wrong_answer($question);
         $classifiedresponse = [
             4 => [11 => new question_classified_response(11, $question->cols[11]->shorttext, 0)],
             5 => [11 => new question_classified_response(11, $question->cols[11]->shorttext, 0)],
@@ -707,139 +700,4 @@ class qtype_matrix_question_test extends advanced_testcase {
         return $question->get_order($mockedAttempt);
     }
 
-    /**
-     * @param qtype_matrix_question $question
-     * @return array
-     */
-    protected static function make_correct_answer(qtype_matrix_question $question): array {
-        $answermatrix = [];
-        switch ($question->questiontext) {
-            case 'default':
-            case 'nondefault':
-                $answermatrix[0] = [0,1,0,0];
-                $answermatrix[1] = [0,1,0,0];
-                $answermatrix[2] = [0,1,0,0];
-                $answermatrix[3] = [0,1,0,0];
-                break;
-            case 'multipletwocorrect':
-                $answermatrix[0] = [1,1,0,0];
-                $answermatrix[1] = [1,1,0,0];
-                $answermatrix[2] = [1,1,0,0];
-                $answermatrix[3] = [1,1,0,0];
-                break;
-        }
-        return self::build_answer_with_matrix($question, $answermatrix);
-    }
-
-    /**
-     * @param qtype_matrix_question $question
-     * @return array
-     */
-    protected static function make_incorrect_answer(qtype_matrix_question $question): array {
-        $answermatrix = [];
-        $answermatrix[0] = [0,0,0,1];
-        $answermatrix[1] = [0,0,0,1];
-        $answermatrix[2] = [0,0,0,1];
-        $answermatrix[3] = [0,0,0,1];
-        return self::build_answer_with_matrix($question, $answermatrix);
-    }
-
-    /**
-     * @param qtype_matrix_question $question
-     * @return array
-     */
-    protected static function make_one_row_wrong_answer(qtype_matrix_question $question): array {
-        $answermatrix = [];
-        switch ($question->questiontext) {
-            case 'default':
-            case 'nondefault':
-                $answermatrix[0] = [0,0,0,1];
-                $answermatrix[1] = [0,1,0,0];
-                $answermatrix[2] = [0,1,0,0];
-                $answermatrix[3] = [0,1,0,0];
-                break;
-            case 'multipletwocorrect':
-                $answermatrix[0] = [0,0,0,1];
-                $answermatrix[1] = [1,1,0,0];
-                $answermatrix[2] = [1,1,0,0];
-                $answermatrix[3] = [1,1,0,0];
-                break;
-        }
-        return self::build_answer_with_matrix($question, $answermatrix);
-    }
-
-    /**
-     * Produces a partially correct answer, all possible variations.
-     * @param qtype_matrix_question $question
-     * @return array
-     */
-    protected static function make_half_correct_answer(qtype_matrix_question $question): array {
-        $answermatrix = [];
-        switch ($question->questiontext) {
-            case 'default':
-            case 'nondefault':
-                $answermatrix[0] = [0,1,0,0];
-                $answermatrix[1] = [0,1,0,0];
-                $answermatrix[2] = [0,0,0,1];
-                $answermatrix[3] = [0,0,0,1];
-                break;
-            case 'multipletwocorrect':
-                $answermatrix[0] = [1,1,0,0];
-                $answermatrix[1] = [0,1,0,1];
-                $answermatrix[2] = [0,1,0,0];
-                $answermatrix[3] = [0,0,0,1];
-                break;
-        }
-        return self::build_answer_with_matrix($question, $answermatrix);
-    }
-
-    /**
-     * @param qtype_matrix_question $question
-     * @return array
-     */
-    protected static function make_incomplete_partially_correct_answer(qtype_matrix_question $question): array {
-        $answermatrix = [];
-        switch ($question->questiontext) {
-            case 'default':
-            case 'nondefault':
-                $answermatrix[0] = [0,1,0,0];
-                $answermatrix[1] = [0,1,0,0];
-                $answermatrix[2] = [0,0,0,0];
-                $answermatrix[3] = [0,0,0,0];
-                break;
-            case 'multipletwocorrect':
-                $answermatrix[0] = [1,1,0,0];
-                $answermatrix[1] = [0,1,0,1];
-                $answermatrix[2] = [0,0,0,0];
-                $answermatrix[3] = [0,0,0,0];
-                break;
-        }
-        return self::build_answer_with_matrix($question, $answermatrix);
-    }
-
-    /**
-     * @param qtype_matrix_question $question
-     * @return array
-     */
-    protected static function make_incomplete_wrong_answer(qtype_matrix_question $question): array {
-        $answermatrix = [];
-        $answermatrix[0] = [0,0,0,1];
-        $answermatrix[1] = [0,0,0,1];
-        $answermatrix[2] = [0,0,0,0];
-        $answermatrix[3] = [0,0,0,0];
-        return self::build_answer_with_matrix($question, $answermatrix);
-    }
-
-    private static function build_answer_with_matrix(qtype_matrix_question $question, array $matrix):array {
-        $answer = [];
-        foreach ($matrix as $rowindex => $cols) {
-            foreach ($cols as $colindex => $colvalue) {
-                if ($colvalue > 0) {
-                    $key = $question->key($rowindex, $colindex);
-                    $answer[$key] = $question->multiple ? true : $colindex;
-                }
-            }
-        }
-        return $answer;
-    }
 }
