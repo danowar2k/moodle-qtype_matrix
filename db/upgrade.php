@@ -40,6 +40,9 @@ global $CFG;
 
 require_once $CFG->dirroot  . '/question/type/matrix/questiontype.php';
 
+use qtype_matrix\db\migration_utils;
+use qtype_matrix\exception\broken_matrix_attempt_exception;
+
 /**
  * @param int $oldversion
  * @return bool
@@ -139,6 +142,146 @@ function xmldb_qtype_matrix_upgrade(int $oldversion): bool {
 
     }
 
-    // FIXME: Need an upgrade step that transforms attempt steps to the new format
+    if ($oldversion < 2025093004) {
+        // This can be long running depending on how many step data there is.
+        // Keep in mind that if running this via webserver, that one needs an appropriate timeout, too.
+        core_php_time_limit::raise(0);
+        $now = time();
+        $transaction = $DB->start_delegated_transaction();
+        $questionbatchsize = 1000;
+        // Show a progress bar.
+        $total = $DB->count_records('question', ['qtype' => 'matrix']);
+        $pbar = new progress_bar('upgrade_qtype_matrix_stepdata_to_row', 500, true);
+        $nrprocessedquestions = 0;
+        while ($nrprocessedquestions < $total) {
+            $pbar->update($nrprocessedquestions, $total, "Updating attempt data for qtype_matrix questions - $nrprocessedquestions/$total questions.");
+            $questionids = $DB->get_records(
+                'question', ['qtype' => 'matrix'], 'id ASC', 'id', $nrprocessedquestions, $questionbatchsize
+            );
+            $nrfoundquestionids = count($questionids);
+            $nrprocessedquestions += $nrfoundquestionids;
+
+            [$qinsql, $qidparams] = $DB->get_in_or_equal(array_keys($questionids));
+
+            // Leave out matrix questions with broken data (missing col records)
+            $colssql = "
+                SELECT qmc.id as colid, qm.id as matrixid, q.id as questionid
+                FROM {question} q
+                LEFT JOIN {qtype_matrix} qm ON qm.questionid = q.id
+                LEFT JOIN {qtype_matrix_cols} qmc ON qmc.matrixid = qm.id
+                WHERE q.id ".$qinsql. " AND qmc.id IS NOT NULL ORDER BY q.id, qm.id, qmc.id ASC
+            ";
+            $matrixcols = $DB->get_records_sql($colssql, $qidparams);
+
+            $matrixinfos = [];
+            $sqlnamecase = "";
+            $sqlvaluecase = "";
+
+            foreach ($matrixcols as $matrixcol) {
+                if (!$matrixcol->matrixid || !$matrixcol->colid) {
+                    // broken question (no matrix or no col records)
+                    continue;
+                }
+                if (!isset($matrixinfos[$matrixcol->questionid])) {
+                    $matrixinfos[$matrixcol->questionid] = [];
+                }
+                $matrix = &$matrixinfos[$matrixcol->questionid];
+                if (!isset($matrix['matrixid'])) {
+                    $matrix['matrixid'] = $matrixcol->matrixid;
+                }
+                if (!isset($matrix['cols'])) {
+                    $matrix['cols'] = [];
+                }
+                $matrix['cols'][] = $matrixcol->colid;
+                if (!isset($matrix['attemptroworder'])) {
+                    $matrix['attemptroworder'] = [];
+                }
+            }
+            unset($matrixcols);
+
+            $orderstepdatasql = "
+                SELECT qasd.id as stepdataid, q.id as questionid, qa.id as attemptid, qas.id as stepid, qasd.name, qasd.value
+                FROM {question} q
+                JOIN {question_attempts} qa ON qa.questionid = q.id
+                JOIN {question_attempt_steps} qas ON qas.questionattemptid = qa.id
+                JOIN {question_attempt_step_data} qasd ON qasd.attemptstepid = qas.id
+                WHERE q.id ".$qinsql. "
+                AND qasd.name = '_order' ORDER BY qasd.name DESC, q.id ASC, qa.id ASC, qas.id ASC, qasd.id ASC 
+            ";
+
+            $orderdatarecords = $DB->get_records_sql($orderstepdatasql, $qidparams);
+            foreach ($orderdatarecords as $orderdata) {
+                if (!isset($matrixinfos[$orderdata->questionid])) {
+                    continue;
+                }
+                $matrix = &$matrixinfos[$orderdata->questionid];
+                $matrix['attemptroworder'][$orderdata->attemptid] = explode(',', $orderdata->value);
+            }
+            unset($orderdatarecords);
+
+            $cellstepdatasql = "
+                SELECT qasd.id as stepdataid, q.id as questionid, qa.id as attemptid, qas.id as stepid, qasd.name, qasd.value
+                FROM {question} q
+                JOIN {question_attempts} qa ON qa.questionid = q.id
+                JOIN {question_attempt_steps} qas ON qas.questionattemptid = qa.id
+                JOIN {question_attempt_step_data} qasd ON qasd.attemptstepid = qas.id
+                WHERE q.id ".$qinsql. "
+                AND qasd.name ~ '^cell' ORDER BY qasd.name DESC, q.id ASC, qa.id ASC, qas.id ASC, qasd.id ASC 
+            ";
+            $celldatarecords = $DB->get_records_sql($cellstepdatasql, $qidparams);
+            $nrcelldata = count($celldatarecords);
+            $celldatacount = 0;
+
+            $celldatabatchsize = 10000;
+            $celldatabatchcount = 0;
+
+            $celldataids = [];
+
+            foreach ($celldatarecords as $celldata) {
+                $celldatacount++;
+                if (!isset($matrixinfos[$celldata->questionid])) {
+                    continue;
+                }
+                $matrix = &$matrixinfos[$celldata->questionid];
+                try {
+                    [$newname, $newvalue] = migration_utils::to_new_name_and_value(
+                        $celldata->name,
+                        $celldata->value,
+                        $matrix['attemptroworder'][$celldata->attemptid],
+                        $matrix['cols']
+                    );
+                    $when = " WHEN id = ".$celldata->stepdataid;
+                    $sqlnamecase .= $when;
+                    $sqlvaluecase .= $when;
+                    $sqlnamecase .= " THEN '".$newname."'";
+                    $sqlvaluecase .= " THEN '".$newvalue."'";
+                    $celldataids[] = $celldata->stepdataid;
+                    $celldatabatchcount++;
+                } catch (broken_matrix_attempt_exception $e) {
+                    // Step data and matrix data probably doesn't match anymore
+                    continue;
+                }
+                if ($celldatabatchcount == $celldatabatchsize || $celldatacount == $nrcelldata) {
+                    if ($celldataids) {
+                        [$insql, $celldataparams] = $DB->get_in_or_equal($celldataids);
+                        $updatesql = "UPDATE {question_attempt_step_data}";
+                        $sqlnamecase = " SET name = CASE" . $sqlnamecase . " END";
+                        $sqlvaluecase = ", value = CASE" . $sqlvaluecase . " END";
+                        $updatesql .= $sqlnamecase . $sqlvaluecase;
+                        $updatesql .= " WHERE id ".$insql;
+                        $DB->execute($updatesql, $celldataparams);
+                    }
+                    // Reset loop vars.
+                    $sqlnamecase = "";
+                    $sqlvaluecase = "";
+                    $celldatabatchcount = 0;
+                    $celldataids = [];
+                }
+            }
+        }
+        $pbar->update($nrprocessedquestions, $total, "Done. Seconds: ".(time() - $now));
+        $transaction->allow_commit();
+    }
+    die();
     return true;
 }
