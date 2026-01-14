@@ -46,7 +46,6 @@ Feature: Grading and regrading using new versions of matrix questions should wor
     And I press "Finish attempt ..."
     And I press "Submit all and finish"
     And I click on "Submit all and finish" "button" in the "Submit all your answers and finish?" "dialogue"
-#    And I should see "BOOM"
     And I should see "Mark 0.00 out of"
     And I log out
 

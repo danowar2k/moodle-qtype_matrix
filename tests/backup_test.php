@@ -17,7 +17,9 @@
 namespace qtype_matrix;
 
 use mod_quiz\backup\repeated_restore_test;
+use qtype_matrix\local\setting;
 use question_bank;
+use core_question_generator;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -36,15 +38,19 @@ require_once $CFG->dirroot . '/course/externallib.php';
 final class backup_test extends \advanced_testcase {
 
     /**
-     * Duplicate quiz with a matrix question, and check it worked,
-     * i.e. the copy of the question looks the same but is not exactly the same (db ids)
+     * Duplicate quiz with two matrix question versions, and check it worked,
+     * i.e. the copy of the questions look the same but is not exactly the same (db ids)
+     * @dataProvider duplicate_matrix_question_data_provider
      */
-    public function test_duplicate_matrix_question(): void {
+    public function test_duplicate_matrix_question(
+        bool $allowautopass
+    ): void {
         global $DB;
         $this->resetAfterTest();
         $this->setAdminUser();
-
+        set_config(setting::SETTING_ALLOW_AUTOPASS, $allowautopass, 'qtype_matrix');
         $coregenerator = $this->getDataGenerator();
+        /** @var core_question_generator $questiongenerator */
         $questiongenerator = $coregenerator->get_plugin_generator('core_question');
 
         // Create a course with a page that embeds a question.
@@ -55,66 +61,80 @@ final class backup_test extends \advanced_testcase {
         $cat = $questiongenerator->create_question_category(['contextid' => $quizcontext->id]);
         $question = $questiongenerator->create_question('matrix', 'default', ['category' => $cat->id]);
 
+        $questionv2 = $questiongenerator->update_question($question, 'default', [
+            'name' => 'V2',
+            'rows_autopass[0]' => true,
+            'rows_autopass[2]' => true,
+        ]);
         // Store some counts.
         $numquizzes = count(get_fast_modinfo($course)->instances['quiz']);
         $nummatrixquestions = $DB->count_records('question', ['qtype' => 'matrix']);
 
         // Duplicate the page.
+        // As the questions are inside a quiz category, they will be copied not mapped
         duplicate_module($course, get_fast_modinfo($course)->get_cm($quiz->cmid));
 
         // Verify the copied quiz exists.
         $this->assertCount($numquizzes + 1, get_fast_modinfo($course)->instances['quiz']);
 
-        // Verify the copied question.
-        $this->assertEquals($nummatrixquestions + 1, $DB->count_records('question', ['qtype' => 'matrix']));
-        $newmatrixid = $DB->get_field_sql("
+        // Verify questions have been copied.
+        $this->assertEquals($nummatrixquestions * 2, $DB->count_records('question', ['qtype' => 'matrix']));
+        $copiedv2matrixid = $DB->get_field_sql("
                 SELECT MAX(id)
                   FROM {question}
-                 WHERE qtype = ?
-                ", ['matrix']);
-        $questiondata = question_bank::load_question_data($question->id);
-        $matrixdata = question_bank::load_question_data($newmatrixid);
+                 WHERE qtype = ? AND name = ?
+                ", ['matrix', 'V2']);
+        $questionv2data = question_bank::load_question_data($questionv2->id);
+        $matrixv2data = question_bank::load_question_data($copiedv2matrixid);
 
-        $this->assertNotEquals($questiondata->id, $matrixdata->id);
-        $this->assertEquals($questiondata->name, $matrixdata->name);
-        $this->assertEquals($questiondata->questiontext, $matrixdata->questiontext);
-        $this->assertEquals($questiondata->generalfeedback, $matrixdata->generalfeedback);
-        $this->assertEquals($questiondata->defaultmark, $matrixdata->defaultmark);
-        $this->assertEquals($questiondata->penalty, $matrixdata->penalty);
-        $this->assertEquals($questiondata->options->grademethod, $matrixdata->options->grademethod);
-        $this->assertEquals($questiondata->options->multiple, $matrixdata->options->multiple);
-        $this->assertEquals($questiondata->options->usedndui, $matrixdata->options->usedndui);
-        $this->assertEquals($questiondata->options->shuffleanswers, $matrixdata->options->shuffleanswers);
-        $questiondatarows = array_values($questiondata->options->rows);
-        $matrixdatarows = array_values($matrixdata->options->rows);
-        foreach ($questiondatarows as $index => $row) {
-            $this->assertNotEquals($questiondatarows[$index]->id, $matrixdatarows[$index]->id);
-            $this->assertNotEquals($questiondatarows[$index]->matrixid, $matrixdatarows[$index]->matrixid);
-            $this->assertEquals($questiondatarows[$index]->shorttext, $matrixdatarows[$index]->shorttext);
-            $this->assertEquals($questiondatarows[$index]->description['text'], $matrixdatarows[$index]->description['text']);
-            $this->assertEquals($questiondatarows[$index]->description['format'], $matrixdatarows[$index]->description['format']);
-            $this->assertEquals($questiondatarows[$index]->feedback['text'], $matrixdatarows[$index]->feedback['text']);
-            $this->assertEquals($questiondatarows[$index]->feedback['format'], $matrixdatarows[$index]->feedback['format']);
+        $this->assertNotEquals($questionv2data->id, $matrixv2data->id);
+        $this->assertEquals($questionv2data->name, $matrixv2data->name);
+        $this->assertEquals($questionv2data->questiontext, $matrixv2data->questiontext);
+        $this->assertEquals($questionv2data->generalfeedback, $matrixv2data->generalfeedback);
+        $this->assertEquals($questionv2data->defaultmark, $matrixv2data->defaultmark);
+        $this->assertEquals($questionv2data->penalty, $matrixv2data->penalty);
+        $this->assertEquals($questionv2data->options->grademethod, $matrixv2data->options->grademethod);
+        $this->assertEquals($questionv2data->options->multiple, $matrixv2data->options->multiple);
+        $this->assertEquals($questionv2data->options->usedndui, $matrixv2data->options->usedndui);
+        $this->assertEquals($questionv2data->options->shuffleanswers, $matrixv2data->options->shuffleanswers);
+        $questionv2datarows = array_values($questionv2data->options->rows);
+        $matrixdatarows = array_values($matrixv2data->options->rows);
+        foreach ($questionv2datarows as $index => $row) {
+            $this->assertNotEquals($questionv2datarows[$index]->id, $matrixdatarows[$index]->id);
+            $this->assertNotEquals($questionv2datarows[$index]->matrixid, $matrixdatarows[$index]->matrixid);
+            $this->assertEquals($questionv2datarows[$index]->shorttext, $matrixdatarows[$index]->shorttext);
+            $this->assertEquals($questionv2datarows[$index]->description['text'], $matrixdatarows[$index]->description['text']);
+            $this->assertEquals($questionv2datarows[$index]->description['format'], $matrixdatarows[$index]->description['format']);
+            $this->assertEquals($questionv2datarows[$index]->feedback['text'], $matrixdatarows[$index]->feedback['text']);
+            $this->assertEquals($questionv2datarows[$index]->feedback['format'], $matrixdatarows[$index]->feedback['format']);
+            $this->assertEquals($questionv2datarows[$index]->autopass, $matrixdatarows[$index]->autopass);
         }
 
-        $questiondatacols = array_values($questiondata->options->cols);
-        $matrixdatacols = array_values($matrixdata->options->cols);
-        foreach ($questiondatacols as $index => $col) {
-            $this->assertNotEquals($questiondatacols[$index]->id, $matrixdatacols[$index]->id);
-            $this->assertNotEquals($questiondatacols[$index]->matrixid, $matrixdatacols[$index]->matrixid);
-            $this->assertEquals($questiondatacols[$index]->shorttext, $matrixdatacols[$index]->shorttext);
-            $this->assertEquals($questiondatacols[$index]->description['text'], $matrixdatacols[$index]->description['text']);
-            $this->assertEquals($questiondatacols[$index]->description['format'], $matrixdatacols[$index]->description['format']);
+        $questionv2datacols = array_values($questionv2data->options->cols);
+        $matrixv2datacols = array_values($matrixv2data->options->cols);
+        foreach ($questionv2datacols as $index => $col) {
+            $this->assertNotEquals($questionv2datacols[$index]->id, $matrixv2datacols[$index]->id);
+            $this->assertNotEquals($questionv2datacols[$index]->matrixid, $matrixv2datacols[$index]->matrixid);
+            $this->assertEquals($questionv2datacols[$index]->shorttext, $matrixv2datacols[$index]->shorttext);
+            $this->assertEquals($questionv2datacols[$index]->description['text'], $matrixv2datacols[$index]->description['text']);
+            $this->assertEquals($questionv2datacols[$index]->description['format'], $matrixv2datacols[$index]->description['format']);
         }
-        $questiondataweights = array_values($questiondata->options->weights);
-        $matrixdataweights = array_values($matrixdata->options->weights);
-        foreach ($questiondataweights as $rowindex => $colarrays) {
+        $questionv2dataweights = array_values($questionv2data->options->weights);
+        $matrixv2dataweights = array_values($matrixv2data->options->weights);
+        foreach ($questionv2dataweights as $rowindex => $colarrays) {
             $questiondatacolvalues = array_values($colarrays);
-            $matrixdatacolvalues = array_values($matrixdataweights[$rowindex]);
+            $matrixdatacolvalues = array_values($matrixv2dataweights[$rowindex]);
             foreach ($questiondatacolvalues as $colindex => $colvalue) {
                 $this->assertEquals($colvalue, $matrixdatacolvalues[$colindex]);
             }
         }
+    }
+
+    public function duplicate_matrix_question_data_provider() {
+        return [
+            'No Autopass' => [false],
+            'Autopass on' => [true],
+        ];
     }
 
     /**

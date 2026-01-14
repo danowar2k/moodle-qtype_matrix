@@ -16,7 +16,9 @@
 
 namespace qtype_matrix;
 
+use core_question\local\bank\question_version_status;
 use qtype_matrix\local\qtype_matrix_grading;
+use qtype_matrix\local\setting;
 use qtype_matrix_test_helper;
 use qtype_matrix;
 use advanced_testcase;
@@ -24,6 +26,7 @@ use context_course;
 use qformat_xml;
 use question_bank;
 use test_question_maker;
+use stdClass;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -133,6 +136,7 @@ class qtype_matrix_test extends advanced_testcase {
             $this->assertEquals(FORMAT_HTML, $questiondatarow->description['format']);
             $this->assertEquals($matrixrow->feedback, $questiondatarow->feedback['text']);
             $this->assertEquals(FORMAT_HTML, $questiondatarow->feedback['format']);
+            $this->assertEquals($matrixrow->autopass, $questiondatarow->autopass);
         }
         $matrixcols = $DB->get_records('qtype_matrix_cols', ['matrixid' => $matrixoptions->id]);
         $this->assertIsArray($questiondata->options->cols);
@@ -187,6 +191,7 @@ class qtype_matrix_test extends advanced_testcase {
             $this->assertEquals(FORMAT_HTML, $retrievedmatrixrow->description['format']);
             $this->assertEquals($matrixrow->feedback, $retrievedmatrixrow->feedback['text']);
             $this->assertEquals(FORMAT_HTML, $retrievedmatrixrow->feedback['format']);
+            $this->assertEquals($matrixrow->autopass, $retrievedmatrixrow->autopass);
         }
         $matrixcols = $DB->get_records('qtype_matrix_cols', ['matrixid' => $matrixoptions->id]);
         $this->assertIsArray($matrix->cols);
@@ -211,16 +216,23 @@ class qtype_matrix_test extends advanced_testcase {
 
     /**
      * @dataProvider save_question_options_data_provider
-     * @param bool $type What test question type will be used
-     * @param array $expectedmultiple What the question value for multiple should be
-     * @param array $nrweightrecords Expected nr of weight records
+     * @param string $type What test question type will be used
+     * @param bool $triggerautopass - Whether the autopass values should be stored
+     * @param bool $expectedmultiple What the question value for multiple should be
+     * @param int $nrweightrecords Expected nr of weight records
      * @return void
      * @throws \dml_exception
      * @throws \dml_transaction_exception
      */
-    public function test_save_question_options($type, $expectedmultiple, $nrweightrecords):void {
+    public function test_save_question_options(
+        string $type,
+        bool $triggerautopass,
+        bool $expectedmultiple,
+        int $nrweightrecords
+    ):void {
         global $DB;
         $this->resetAfterTest();
+        set_config(setting::SETTING_ALLOW_AUTOPASS, true, 'qtype_matrix');
         $typequestion = qtype_matrix_test_helper::make_question($type);
         $fromform = test_question_maker::get_question_form_data('matrix', $type);
         $this->assertEquals($expectedmultiple, $fromform->multiple);
@@ -229,6 +241,16 @@ class qtype_matrix_test extends advanced_testcase {
         $this->assertEquals(0, $DB->count_records('qtype_matrix_rows'));
         $this->assertEquals(0, $DB->count_records('qtype_matrix_cols'));
         $this->assertEquals(0, $DB->count_records('qtype_matrix_weights'));
+        $this->assertEquals(0, $DB->count_records('question_versions'));
+
+        $fakeversionrecord = new stdClass();
+        $fakeversionrecord->questionbankentryid = 345;
+        $fakeversionrecord->questionid = $fromform->id;
+        $fakeversionrecord->status = question_version_status::QUESTION_STATUS_READY;
+        $fakeversionrecord->version = $triggerautopass ? 2 : 1;
+        $DB->insert_record('question_versions', $fakeversionrecord);
+        $this->assertEquals(1, $DB->count_records('question_versions'));
+
         $errors = $this->qtype->save_question_options($fromform);
         $this->assertIsObject($errors);
         $this->assertFalse((bool) get_object_vars($errors));
@@ -248,6 +270,8 @@ class qtype_matrix_test extends advanced_testcase {
             $this->assertEquals($fromform->rows_shorttext[$rowindex], $matrixrow->shorttext);
             $this->assertEquals($fromform->rows_description[$rowindex]['text'], $matrixrow->description);
             $this->assertEquals($fromform->rows_feedback[$rowindex]['text'], $matrixrow->feedback);
+            $expectedautopassvalue = $triggerautopass ? $fromform->rows_autopass[$rowindex] : false;
+            $this->assertEquals($expectedautopassvalue, $matrixrow->autopass);
             $rowindex++;
         }
 
@@ -302,9 +326,12 @@ class qtype_matrix_test extends advanced_testcase {
      */
     public function save_question_options_data_provider():array {
         return [
-            'Default question' => ['default', false, 4],
-            'Nondefault question' => ['nondefault', true, 4],
-            'Multiple, two correct question' => ['multipletwocorrect', true, 8],
+            'First version, default question' => ['default', false, false, 4],
+            'Later version, default question' => ['default', true, false, 4],
+            'First version, nondefault question' => ['nondefault', false, true, 4],
+            'Later version, nondefault question' => ['nondefault', true, true, 4],
+            'First version, multiple, two correct question' => ['multipletwocorrect', false, true, 8],
+            'Later version, multiple, two correct question' => ['multipletwocorrect', true, true, 8],
         ];
     }
 
@@ -516,6 +543,18 @@ class qtype_matrix_test extends advanced_testcase {
         $this->assertEquals(qtype_matrix::DEFAULT_MULTIPLE, $fromform->multiple);
         $this->assertEquals(qtype_matrix::DEFAULT_USEDNDUI, $fromform->usedndui);
         $this->assertEquals(qtype_matrix::DEFAULT_SHUFFLEANSWERS, $fromform->shuffleanswers);
+    }
+
+    public function test_import_from_xml_autopass_question():void {
+        $xmlcontent = implode('', file(__DIR__ . '/fixtures/autopass_question_to_import.xml'));
+        $xml = xmlize($xmlcontent, 0, 'UTF-8', true);
+        $qformat = new qformat_xml();
+        $fromform = new \stdClass();
+        $fromform = $this->qtype->import_from_xml($xml['question'], $fromform, $qformat);
+        $this->assertEquals(0, $fromform->rows_autopass[0]);
+        $this->assertEquals(0, $fromform->rows_autopass[1]);
+        $this->assertEquals(0, $fromform->rows_autopass[2]);
+        $this->assertEquals(0, $fromform->rows_autopass[3]);
     }
 
     // FIXME: There should probably a question with invalid values for everything

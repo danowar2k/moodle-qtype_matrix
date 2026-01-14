@@ -16,12 +16,16 @@ Feature: Managing matrix question versions via the form should work
     And the following "question categories" exist:
       | contextlevel | reference | name           |
       | Course       | C1        | Test questions |
+    And the following config values are set as admin:
+      | config | value | plugin |
+      | allow_autopass | 1 | qtype_matrix |
 
   Scenario: Create a first version, edit it and save without changes. Currently a v2 is created anyway.
     When I am on the "Course 1" "core_question > course question bank" page logged in as teacher
     And I press "Create a new question ..."
     And I set the field "Matrix/Kprime" to "1"
     And I press "Add"
+    And I should not see "Award free points"
     And I set the following fields to these values:
       | Question name | matrix-001                                        |
       | Question text | Default K-Prime question                          |
@@ -37,6 +41,7 @@ Feature: Managing matrix question versions via the form should work
     And I should see "matrix-001"
     And I should see "v1" in the table row containing "matrix-001"
     And I am on the "matrix-001" "core_question > edit" page
+    And I should see "Award free points"
     And I press "id_submitbutton"
     And I should see "matrix-001"
     And I should see "v2" in the table row containing "matrix-001"

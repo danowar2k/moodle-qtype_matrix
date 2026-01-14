@@ -30,9 +30,6 @@ class restore_qtype_matrix_plugin_test extends advanced_testcase {
     ):void {
         global $DB;
         $this->resetAfterTest();
-        $backupquestionid = 123;
-        $createdquestionid = 234;
-
         $mockedrestore = $this
             ->getMockBuilder(restore_qtype_matrix_plugin::class)
             ->setConstructorArgs([
@@ -48,18 +45,23 @@ class restore_qtype_matrix_plugin_test extends advanced_testcase {
                 'set_mapping'
             ])
             ->getMock();
+        // Testing this method breaks into the restore workflow.
+        // We can't first create the question or map the restored question to an existing one.
+        // But we can tell the function whether one or the other case happened.
         $mockedrestore->method('is_question_created')->willReturn($questioncreated);
+        $createdquestionid = 234;
         $mockedrestore->method('get_new_parentid')->willReturn($createdquestionid);
 
-        $backupdata = [
-            'id' => $backupquestionid,
+        $matrixoptionsbackup = [
+            'id' => 123,
             'grademethod' => $grademethod,
             'multiple' => $multiple,
             'shuffleanswers' => $shuffleanswers,
             'usedndui' => $usedndui
         ];
         $this->assertEquals(0, $DB->count_records('qtype_matrix'));
-        $mockedrestore->process_matrix($backupdata);
+        $mockedrestore->process_matrix($matrixoptionsbackup);
+        // If we created a new question we also need a new matrix record (1-on-1 relationship).
         $nrmatrixrecords = $questioncreated ? 1 : 0;
         $this->assertEquals($nrmatrixrecords, $DB->count_records('qtype_matrix'));
         if ($questioncreated) {
@@ -88,22 +90,98 @@ class restore_qtype_matrix_plugin_test extends advanced_testcase {
     }
 
     /**
-     * @dataProvider process_col_data_provider
+     * @dataProvider process_row_data_provider
      * @param bool $questioncreated
      * @return void
      * @throws dml_exception
      */
-    public function test_process_col(
-        string $backupshorttext,
-        string $backupdescription,
+    public function test_process_row(
         bool $questioncreated,
-        bool $exceptionexpected
+        ?int $createdmatrixid,
+        bool $expectexception,
+        bool $autopass,
+        bool $firstversion
     ): void {
-        global $DB;
         $this->resetAfterTest();
-        $backupcolid = 456;
-        $backupmatrixid = 123;
-        $createdormappedmatrixid = 234;
+        $rowbackup = [
+            'id' => 456,
+            'matrixid' => 123,
+            'shorttext' => 'BackupShorttext',
+            'description' => 'BackupDescription',
+            'autopass' => $autopass ? '1' : '0'
+        ];
+
+        $this->process_dim(
+            true,
+            $rowbackup,
+            $questioncreated,
+            $createdmatrixid,
+            $expectexception,
+            $firstversion
+        );
+    }
+
+    public function process_row_data_provider() {
+        return [
+            'Good data, question created, no autopass, v1' => [true, 234, false, false, true],
+            'Good data, question created, no autopass, v2' => [true, 234, false, false, false],
+            'Good data, question created, with autopass, v1' => [true, 234, false, true, true],
+            'Good data, question created, with autopass, v2' => [true, 234, false, true, false],
+            'Good data, question mapped, no autopass, v1' => [false, null, false, false, true],
+            'Good data, question mapped, no autopass, v2' => [false, null, false, false, false],
+            'Good data, question mapped, with autopass, v1' => [false, null, false, true, true],
+            'Good data, question mapped, with autopass, v2' => [false, null, false, true, false],
+            'Question created but no matrix found' => [true, null, true, false, true]
+        ];
+    }
+
+    /**
+     * @dataProvider process_col_data_provider
+     * @param bool $questioncreated
+     * @param int|null $createdmatrixid
+     * @param bool $expectexception
+     * @return void
+     * @throws dml_exception
+     */
+    public function test_process_col(
+        bool $questioncreated,
+        ?int $createdmatrixid,
+        bool $expectexception
+    ): void {
+        $this->resetAfterTest();
+        $colbackup = [
+            'id' => 456,
+            'matrixid' => 123,
+            'shorttext' => 'BackupShorttext',
+            'description' => 'BackupDescription'
+        ];
+        $this->process_dim(
+            false,
+            $colbackup,
+            $questioncreated,
+            $createdmatrixid,
+            $expectexception,
+            true
+        );
+    }
+
+    public function process_col_data_provider() {
+        return [
+            'Good data, question created' => [true, 234, false],
+            'Good data, question mapped' => [false, null, false],
+            'Question created but no matrix created' => [true, null, true]
+        ];
+    }
+
+    private function process_dim(
+        bool $isrow,
+        array $dimbackup,
+        bool $questioncreated,
+        ?int $createdmatrixid,
+        bool $expectexception,
+        bool $firstversion
+    ) {
+        global $DB;
         $mockedrestore = $this
             ->getMockBuilder(restore_qtype_matrix_plugin::class)
             ->setConstructorArgs([
@@ -115,48 +193,52 @@ class restore_qtype_matrix_plugin_test extends advanced_testcase {
                     null
                 )])->onlyMethods([
                 'is_question_created',
-                'get_old_parentid',
                 'get_new_parentid',
+                'created_as_first_version',
                 'set_mapping'
             ])
             ->getMock();
         $mockedrestore->method('is_question_created')->willReturn($questioncreated);
-        $mockedrestore->method('get_old_parentid')->willReturn($backupmatrixid);
-        $mockedrestore->method('get_new_parentid')->willReturn($createdormappedmatrixid);
-        $backupdata = [
-            'id' => $backupcolid,
-            'matrixid' => $backupmatrixid,
-            'shorttext' => $backupshorttext,
-            'description' => $backupdescription
-        ];
-        $this->assertEquals(0, $DB->count_records('qtype_matrix_cols'));
-        if ($exceptionexpected) {
-            $this->expectExceptionMessageMatches('/Failed to find an answer matching/');
+        $mockedrestore->method('get_new_parentid')->willReturn($createdmatrixid);
+        $mockedrestore->method('created_as_first_version')->willReturn($firstversion);
+        $dimtable = $isrow ? 'qtype_matrix_rows' : 'qtype_matrix_cols';
+        $this->assertEquals(0, $DB->count_records($dimtable));
+        if ($expectexception) {
+            $this->expectExceptionMessageMatches(
+                '/' . restore_qtype_matrix_plugin::ERROR_INCONSISTENT_BEHAVIOUR . '/'
+            );
         }
-        $mockedrestore->process_col($backupdata);
-        $expectedcolrecords = $questioncreated ? 1 : 0;
-        $this->assertEquals($expectedcolrecords, $DB->count_records('qtype_matrix_cols'));
+        if ($isrow) {
+            $mockedrestore->process_row($dimbackup);
+        } else {
+            $mockedrestore->process_col($dimbackup);
+        }
+        $expecteddimrecords = $questioncreated ? 1 : 0;
+        $this->assertEquals($expecteddimrecords, $DB->count_records($dimtable));
         if ($questioncreated) {
-            $createdcol = $DB->get_record('qtype_matrix_cols', ['matrixid' => $createdormappedmatrixid]);
-            $this->assertNotNull($createdcol);
-            $this->assertEquals($createdormappedmatrixid, $createdcol->matrixid);
-            $this->assertEquals($backupshorttext, $createdcol->shorttext);
-            $this->assertEquals($backupdescription, $createdcol->description);
+            $createddim = $DB->get_record($dimtable, ['matrixid' => $createdmatrixid]);
+            $this->assertNotNull($createddim);
+            $this->assertEquals($createdmatrixid, $createddim->matrixid);
+            $this->assertEquals($dimbackup['shorttext'], $createddim->shorttext);
+            $this->assertEquals($dimbackup['description'], $createddim->description);
+            if ($isrow) {
+                $expectedautopass = (int) ($firstversion ? 0 : $dimbackup['autopass']);
+                $this->assertEquals($expectedautopass, $createddim->autopass);
+            }
         }
-        // FIXME: Missing that the question was mapped and the matching column can be found
     }
 
-    public function process_col_data_provider() {
-        return [
-            'Good data, question created' => ['BShorttext', 'BDescription', true, false],
-            // FIXME: This should be tested once we prevent rows/columns having the same shorttext
-            // 'Good data, question mapped, matching column' => ['BShorttext', 'BDescription', false, false],
-            // FIXME: This test is probably useless, should never happen if questiondata hash generation is good
-            'Good data, question mapped, no matching column' => ['BShorttext', 'BDescription', false, true]
-        ];
-    }
-
-    public function test_process_weight():void {
+    /**
+     * @dataProvider process_weight_data_provider
+     * @param bool $questioncreated
+     * @param bool $expectexception
+     * @return void
+     * @throws dml_exception
+     */
+    public function test_process_weight(
+        bool $questioncreated,
+        bool $produceexception
+    ):void {
         global $DB;
         $this->resetAfterTest();
         $mockedrestore = $this
@@ -169,36 +251,53 @@ class restore_qtype_matrix_plugin_test extends advanced_testcase {
                     'filename',
                     null
                 )])->onlyMethods([
+                'is_question_created',
                 'get_mappingid',
                 'set_mapping'
             ])
             ->getMock();
-        $backupweightid = 345;
-        $backuprowid = 123;
-        $backupcolid = 234;
-        $mappedrowid = 456;
-        $mappedcolid = 567;
-        $get_mappingid_map = [
-            ['row', $backuprowid, false, $mappedrowid],
-            ['col', $backupcolid, false, $mappedcolid],
-        ];
-        $mockedrestore->method('get_mappingid')->willReturnMap($get_mappingid_map);
-        $backupdata = [
-            'id' => $backupweightid,
-            'rowid' => $backuprowid,
-            'colid' => $backupcolid,
+        $mockedrestore->method('is_question_created')->willReturn($questioncreated);
+        $weightbackup = [
+            'id' => 345,
+            'rowid' => 123,
+            'colid' => 234,
             'weight' => 1
         ];
+
+        $createdrowid = (!$questioncreated || $produceexception) ? 0 : 456;
+        $createdcolid = (!$questioncreated || $produceexception) ? 0 : 567;
+        $get_mappingid_map = [
+            ['row', $weightbackup['rowid'], false, $createdrowid],
+            ['col', $weightbackup['colid'], false, $createdcolid],
+        ];
+        $mockedrestore->method('get_mappingid')->willReturnMap($get_mappingid_map);
+
         $this->assertEquals(0, $DB->count_records('qtype_matrix_weights'));
-        $mockedrestore->process_weight($backupdata);
-        $this->assertEquals(1, $DB->count_records('qtype_matrix_weights'));
-        $createdweightrecord = $DB->get_record('qtype_matrix_weights', ['colid' => $mappedcolid]);
-        $this->assertNotNull($createdweightrecord);
-        $this->assertNotEquals($backuprowid, $createdweightrecord->rowid);
-        $this->assertEquals($mappedrowid, $createdweightrecord->rowid);
-        $this->assertNotEquals($backupcolid, $createdweightrecord->colid);
-        $this->assertEquals($mappedcolid, $createdweightrecord->colid);
-        $this->assertEquals(1, $createdweightrecord->weight);
+        if ($produceexception) {
+            $this->expectExceptionMessageMatches(
+                '/' . restore_qtype_matrix_plugin::ERROR_INCONSISTENT_BEHAVIOUR . '/'
+            );
+        }
+        $mockedrestore->process_weight($weightbackup);
+        $weightscreated = $questioncreated ? 1 : 0;
+        $this->assertEquals($weightscreated, $DB->count_records('qtype_matrix_weights'));
+        if ($weightscreated) {
+            $createdweightrecord = $DB->get_record('qtype_matrix_weights', ['colid' => $createdcolid]);
+            $this->assertNotNull($createdweightrecord);
+            $this->assertNotEquals($weightbackup['rowid'], $createdweightrecord->rowid);
+            $this->assertEquals($createdrowid, $createdweightrecord->rowid);
+            $this->assertNotEquals($weightbackup['colid'], $createdweightrecord->colid);
+            $this->assertEquals($createdcolid, $createdweightrecord->colid);
+            $this->assertEquals($weightbackup['weight'], $createdweightrecord->weight);
+        }
+    }
+
+    public function process_weight_data_provider() {
+        return [
+            'question created, no exception' => [true, false],
+            'question created, exception' => [true, true],
+            'question mapped, no exception' => [false, false]
+        ];
     }
 
     public function test_recode_legacy_state_answer():void {
@@ -411,12 +510,14 @@ class restore_qtype_matrix_plugin_test extends advanced_testcase {
         $matrix['rows']['row'][0] = [
             'id' => '123',
             'description' => 'backuprowdesc',
-            'feedback' => 'backuprowfeedback'
+            'feedback' => 'backuprowfeedback',
+            'autopass' => '1'
         ];
         $matrix['rows']['row'][1] = [
             'id' => '124',
             'description' => 'backuprowdesc124',
-            'feedback' => 'backuprowfeedback124'
+            'feedback' => 'backuprowfeedback124',
+            'autopass' => '0'
         ];
         $matrix['cols']['col'][0] = [
             'id' => '234',
@@ -448,7 +549,8 @@ class restore_qtype_matrix_plugin_test extends advanced_testcase {
             'feedback' => [
                 'text' => 'backuprowfeedback',
                 'format' => FORMAT_HTML
-            ]
+            ],
+            'autopass' => true
         ];
         $rows[124] = (object) [
             'id' => 124,
@@ -460,7 +562,8 @@ class restore_qtype_matrix_plugin_test extends advanced_testcase {
             'feedback' => [
                 'text' => 'backuprowfeedback124',
                 'format' => FORMAT_HTML
-            ]
+            ],
+            'autopass' => false
         ];
         $options->cols = [];
         $cols = &$options->cols;

@@ -20,6 +20,7 @@ defined('MOODLE_INTERNAL') || die();
 
 use advanced_testcase;
 use qtype_matrix\local\grading\kany;
+use qtype_matrix\local\setting;
 use qtype_matrix_test_helper;
 use question_attempt_step;
 use testable_question_attempt;
@@ -34,20 +35,23 @@ class kany_test extends advanced_testcase {
 
     /**
      * @dataProvider grade_question_data_provider
-     * @return void
      * @throws \coding_exception
      * @throws \dml_exception
      */
     public function test_grade_question(
         string $questiontype,
+        bool   $autopass,
         float  $correctgrade,
         float  $incorrectgrade,
         float  $onerowwronggrade,
         float  $completevariationsgrade,
         float  $incompletepartiallycorrectgrade,
         float  $incompleteincorrectgrade,
-        float  $kanygrade
+        float  $kanygrade,
+        float  $autopassgrade
     ):void {
+        $this->resetAfterTest();
+        set_config(setting::SETTING_ALLOW_AUTOPASS, $autopass, 'qtype_matrix');
         $question = qtype_matrix_test_helper::make_question($questiontype);
         $question->shuffleanswers = false;
         $qa = new testable_question_attempt($question, 0);
@@ -77,6 +81,9 @@ class kany_test extends advanced_testcase {
 
         $response = qtype_matrix_test_helper::make_kany_answer($question);
         $this->assertEquals($kanygrade, $kany->grade_question($question, [4,5,6,7], $response));
+
+        $response = qtype_matrix_test_helper::make_autopass_only_correct_answer($question);
+        $this->assertEquals($autopassgrade, $kany->grade_question($question, [4,5,6,7], $response));
     }
 
     public function grade_question_data_provider():array {
@@ -84,24 +91,38 @@ class kany_test extends advanced_testcase {
         // complete with variations, incomplete partially correct, incomplete wrong,
         // kany specific answer
         return [
-            'Default question' => ['default', 1, 0, 0.5, 0, 0, 0, 0],
-            'Nondefault question' => ['nondefault', 1, 0, 0.5, 0, 0, 0, 0],
-            'multipletwocorrect question' => ['multipletwocorrect', 1, 0, 0.5, 0, 0, 0, 0],
+            'No autopass, default question' => [
+                'default',
+                false,
+                1, // all rows r
+                0, // all rows w
+                0.5, // first row w
+                0, // d+n: 1+2 c, 3+4 w --- m: 1 cc, 2 cw, 3 cx, 4 xw
+                0, // d+n: 1+2 c, 3+4 x --- m: 1 c, 2 cw, 3 x, 4 x
+                0, // 1+2 w, 3+4 x
+                0, // d: cwwx --- n: 1c 2wc 3cw 4w --- m: 1c 2cw 3 cw 4 xc
+                0 // 1+3 w 2+4 c
+            ],
+            'Autopass on, default question' => ['default', true, 1, 0, 1, 0.5, 0.5, 0, 0, 1],
+            'No autopass, nondefault question' => ['nondefault', false, 1, 0, 0.5, 0, 0, 0, 0, 0],
+            'Autopass on, nondefault question' => ['nondefault', true, 1, 0, 1, 0.5, 0.5, 0, 0, 1],
+            'No autopass, multipletwocorrect question' => ['multipletwocorrect', false, 1, 0, 0.5, 0, 0, 0, 0, 0],
+            'Autopass on, multipletwocorrect question' => ['multipletwocorrect', true, 1, 0, 1, 0, 0, 0, 0.5, 1],
         ];
     }
 
     /**
      * @dataProvider grade_row_data_provider
-     * @param string $questiontype
-     * @param array $allrowgrades
-     * @return void
      * @throws \coding_exception
      * @throws \dml_exception
      */
     public function test_grade_row(
         string $questiontype,
+        bool $autopass,
         array $allrowgrades
     ):void {
+        $this->resetAfterTest();
+        set_config(setting::SETTING_ALLOW_AUTOPASS, $autopass, 'qtype_matrix');
         $question = qtype_matrix_test_helper::make_question($questiontype);
         $question->shuffleanswers = false;
         $qa = new \testable_question_attempt($question, 0);
@@ -121,6 +142,7 @@ class kany_test extends advanced_testcase {
             $incompletepartiallyrowcorrectgrade = $rowgrades[4];
             $incompleteincorrectrowgrade = $rowgrades[5];
             $kanygrade = $rowgrades[6];
+            $autopassgrade = $rowgrades[7];
 
             $wrongmessage = 'Wrong for rowindex '.$rowindex;
             $response = qtype_matrix_test_helper::make_correct_answer($question);
@@ -143,6 +165,9 @@ class kany_test extends advanced_testcase {
 
             $response = qtype_matrix_test_helper::make_kany_answer($question);
             $this->assertEquals($kanygrade, $kany->grade_row($question, $rowindex, $response), $wrongmessage);
+
+            $response = qtype_matrix_test_helper::make_autopass_only_correct_answer($question);
+            $this->assertEquals($autopassgrade, $kany->grade_row($question, $rowindex, $response), $wrongmessage);
         }
     }
 
@@ -151,23 +176,41 @@ class kany_test extends advanced_testcase {
         // complete with row variations, incomplete partially correct, incomplete wrong,
         // kany specific answer
         return [
-            'Default question' => ['default', [
-                0 => [1, 0, 0, 1, 1, 0, 1],
-                1 => [1, 0, 1, 1, 1, 0, 0],
-                2 => [1, 0, 1, 0, 0, 0, 0],
-                3 => [1, 0, 1, 0, 0, 0, 0],
+            'No autopass, default question' => ['default', false, [
+                0 => [1, 0, 0, 1, 1, 0, 1, 0],
+                1 => [1, 0, 1, 1, 1, 0, 0, 1],
+                2 => [1, 0, 1, 0, 0, 0, 0, 0],
+                3 => [1, 0, 1, 0, 0, 0, 0, 1],
             ]],
-            'Nondefault question' => ['nondefault', [
-                0 => [1, 0, 0, 1, 1, 0, 1],
-                1 => [1, 0, 1, 1, 1, 0, 0],
-                2 => [1, 0, 1, 0, 0, 0, 0],
-                3 => [1, 0, 1, 0, 0, 0, 0],
+            'Autopass on, default question' => ['default', true, [
+                0 => [1, 1, 1, 1, 1, 1, 1, 1],
+                1 => [1, 0, 1, 1, 1, 0, 0, 1],
+                2 => [1, 1, 1, 1, 1, 1, 1, 1],
+                3 => [1, 0, 1, 0, 0, 0, 0, 1],
             ]],
-            'multipletwocorrect question' => ['multipletwocorrect', [
-                0 => [1, 0, 0, 1, 1, 0, 1],
-                1 => [1, 0, 1, 0, 0, 0, 0],
-                2 => [1, 0, 1, 1, 0, 0, 0],
-                3 => [1, 0, 1, 0, 0, 0, 1],
+            'No autopass, nondefault question' => ['nondefault', false, [
+                0 => [1, 0, 0, 1, 1, 0, 1, 0],
+                1 => [1, 0, 1, 1, 1, 0, 0, 1],
+                2 => [1, 0, 1, 0, 0, 0, 0, 0],
+                3 => [1, 0, 1, 0, 0, 0, 0, 1],
+            ]],
+            'Autopass on, nondefault question' => ['nondefault', true, [
+                0 => [1, 1, 1, 1, 1, 1, 1, 1],
+                1 => [1, 0, 1, 1, 1, 0, 0, 1],
+                2 => [1, 1, 1, 1, 1, 1, 1, 1],
+                3 => [1, 0, 1, 0, 0, 0, 0, 1],
+            ]],
+            'No autopass, multipletwocorrect question' => ['multipletwocorrect', false, [
+                0 => [1, 0, 0, 1, 1, 0, 1, 0],
+                1 => [1, 0, 1, 0, 0, 0, 0, 1],
+                2 => [1, 0, 1, 1, 0, 0, 0, 0],
+                3 => [1, 0, 1, 0, 0, 0, 1, 1],
+            ]],
+            'Autopass on, multipletwocorrect question' => ['multipletwocorrect', true, [
+                0 => [1, 1, 1, 1, 1, 1, 1, 1],
+                1 => [1, 0, 1, 0, 0, 0, 0, 1],
+                2 => [1, 1, 1, 1, 1, 1, 1, 1],
+                3 => [1, 0, 1, 0, 0, 0, 1, 1],
             ]],
         ];
     }

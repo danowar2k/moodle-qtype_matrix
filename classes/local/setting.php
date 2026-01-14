@@ -23,6 +23,8 @@ use dml_exception;
 class setting {
     const COMPONENT = 'qtype_matrix';
 
+    const SETTING_ALLOW_AUTOPASS = 'allow_autopass';
+
     public static function show_kprime_gui(): bool {
         global $CFG;
 
@@ -36,6 +38,14 @@ class setting {
      */
     public static function allow_dnd_ui(): bool {
         return self::get('allow_dnd_ui');
+    }
+
+    /**
+     * @return bool
+     * @throws dml_exception
+     */
+    public static function allow_autopass(): bool {
+        return self::get(self::SETTING_ALLOW_AUTOPASS);
     }
 
     /**

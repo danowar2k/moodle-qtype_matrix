@@ -41,6 +41,8 @@ class qtype_matrix extends question_type {
 
     public const DEFAULT_SHUFFLEANSWERS = true;
 
+    public const DEFAULT_ROW_AUTOPASS = false;
+
     public static function clean_data($questiondata, bool $useoptions = false) {
         $datasource = $questiondata;
         if ($useoptions) {
@@ -59,6 +61,9 @@ class qtype_matrix extends question_type {
         $datasource->shuffleanswers = (bool)($datasource->shuffleanswers ?? self::DEFAULT_SHUFFLEANSWERS);
         $datasource->usedndui = (bool)($datasource->usedndui ?? self::DEFAULT_USEDNDUI);
         $datasource->rows ??= [];
+        foreach ($datasource->rows as $row) {
+            $row->autopass = (bool) ($row->autopass ?? self::DEFAULT_ROW_AUTOPASS);
+        }
         $datasource->cols ??= [];
         $datasource->weights ??= [[]];
         return $questiondata;
@@ -121,12 +126,12 @@ class qtype_matrix extends question_type {
      */
     public function get_question_options($questiondata): bool {
         parent::get_question_options($questiondata);
-        $questiondata = self::clean_data($questiondata, true);
 
         $matrix = self::retrieve_matrix($questiondata->id);
         $questiondata->options->rows = $matrix->rows ?? [];
         $questiondata->options->cols = $matrix->cols ?? [];
         $questiondata->options->weights = $matrix->weights ?? [[]];
+        self::clean_data($questiondata, true);
         return true;
     }
 
@@ -176,9 +181,10 @@ class qtype_matrix extends question_type {
      * @param $fromform - the form data containing the dimension's data
      * @param int $matrixid - the matrix id to store dimension data for
      * @param bool $isrow - whether we want to store rows or cols
+     * @param int $questionversion - the version the saved question has
      * @return array - the database ids of existing dimension records for the matrix
      */
-    private function save_dimension($fromform, int $matrixid, bool $isrow):array {
+    private function save_dimension($fromform, int $matrixid, bool $isrow, int $questionversion):array {
         $store = new question_matrix_store();
         $dim = $isrow ? 'row' : 'col';
         $dimids = [];
@@ -193,7 +199,11 @@ class qtype_matrix extends question_type {
                 'description' => $fromform->{$dim.'s_description'}[$i]['text'],
             ];
             if ($isrow) {
-                $dimrecord->feedback = $fromform->{$dim.'s_feedback'}[$i]['text'];
+                $dimrecord->feedback = $fromform->{'rows_feedback'}[$i]['text'];
+                $dimrecord->autopass = false;
+                if ($questionversion > 1) {
+                    $dimrecord->autopass = $fromform->{'rows_autopass'}[$i] ?? false;
+                }
             }
             $newdimid = $store->{'insert_matrix_'.$dim}($dimrecord);
             if ($newdimid) {
@@ -221,8 +231,10 @@ class qtype_matrix extends question_type {
 
 
         $matrix = (object) $store->get_matrix_by_question_id($questionid);
-        $rowids = $this->save_dimension($fromform, $matrix->id,true);
-        $colids = $this->save_dimension($fromform, $matrix->id,false);
+        $questionversions = get_question_version($questionid);
+        $questionversion = $questionversions[array_key_first($questionversions)]->version;
+        $rowids = $this->save_dimension($fromform, $matrix->id,true, $questionversion);
+        $colids = $this->save_dimension($fromform, $matrix->id,false, $questionversion);
 
         // FIXME: We should just not validate the form with true if we changed the option (or dynamically change the form with AJAX)
         // When we switch from multiple answers to single answers (or the other
@@ -402,6 +414,7 @@ class qtype_matrix extends question_type {
         $fromform->rows_shorttext = [];
         $fromform->rows_description = [];
         $fromform->rows_feedback = [];
+        $fromform->rows_autopass = [];
         $index = 0;
         $rowsxml = $data['#']['row'];
 
@@ -424,6 +437,8 @@ class qtype_matrix extends question_type {
                     )
                 )
             ];
+            // Note: Any row autopass values are not imported because a question XML is imported as a new v1 question.
+            $fromform->rows_autopass[$index] = '0';
             $index++;
         }
 
@@ -501,6 +516,7 @@ class qtype_matrix extends question_type {
             $output .= $format->writetext($row->feedback['text'], 6);
             $output .= "        </feedback>\n";
             $output .= "    </row>\n";
+            // Note: row autopass values are not exported because a question XML is imported as a new v1 question.
             $rowindex++;
         }
 

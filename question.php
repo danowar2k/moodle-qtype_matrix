@@ -19,6 +19,7 @@
  *
  */
 
+use qtype_matrix\local\setting;
 use qtype_matrix\local\lang;
 use qtype_matrix\local\qtype_matrix_grading;
 
@@ -126,6 +127,14 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
      */
     public function weight(int $rowid, int $colid):float {
         return (float) $this->weights[$rowid][$colid] ?? 0;
+    }
+
+    public function autopass_row(int $rowindex): bool {
+        if (!setting::allow_autopass() || !$this->order) {
+            return false;
+        }
+        $rowid = $this->order[$rowindex];
+        return $this->rows[$rowid]->autopass;
     }
 
     /**
@@ -305,20 +314,28 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
             return get_string('regrade_different_nr_cols', 'qtype_matrix');
         }
 
-        // FIXME: This would currently prevent a workflow where we change from single to multiple
-        //        and mark all columns as correct to remove all points for all participants
-        //        to then give everyone the same bonus point.
-        // TODO: This probably must be activated because going from multiple to single and a user that checked all, his answer is now always correct
-//        if ($oldmatrixversion->multiple != $this->multiple) {
-//            $thisrows = array_keys($this->rows);
-//            $otherrows = array_keys($otherversion->rows);
-//            foreach ($thisrows as $rowindex => $rowid) {
-//                $otherrowid = $otherrows[$rowindex];
-//                if ($this->count_correct_answers($rowid) > 1 || $otherversion->count_correct_answers($otherrowid) > 1) {
-//                    return get_string('regrade_switching_multiple_too_many_correct', 'qtype_matrix');
-//                }
-//            }
-//        }
+        // Going from multiple to single or back should only be possible if there was always one correct answer per row
+        if ($oldmatrixversion->multiple != $this->multiple) {
+            // Keep in mind these are the question versions and not the attempt questions,
+            // so the row order here is based on their database ids.
+            $oldmatrixrowids = array_keys($oldmatrixversion->rows);
+            foreach (array_keys($this->rows) as $rowindex => $newrowid) {
+                $oldrowid = $oldmatrixrowids[$rowindex];
+                if (
+                    $this->count_correct_answers($newrowid) > 1
+                    || $oldmatrixversion->count_correct_answers($oldrowid) > 1
+                ) {
+                    return get_string(
+                        'regrade_switching_multiple_too_many_correct',
+                        'qtype_matrix'
+                    );
+                }
+            }
+        }
+        // TODO: What if the other matrix had the correct answer be a different column?
+        //       Should there be a setting to manage this?
+        // TODO: Should there be a setting to allow regrading multiple with rows with > 1 checked columns?
+        //       If so, when should it be OK to do so and when not?
 
         return null;
     }
@@ -390,6 +407,19 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
             $gradevalue += $x[0];
         }
         return $gradevalue;
+    }
+
+    /**
+     * Checks if any row in this question version automatically receives a passing grade.
+     * @return bool
+     */
+    public function has_autopass_rows(): bool {
+        foreach ($this->rows as $row) {
+            if ($row->autopass) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -560,6 +590,8 @@ class qtype_matrix_question extends question_graded_automatically_with_countback
 
     /**
      * Categorise the student's response according to the categories defined by get_possible_responses.
+     * Autopassing a row doesn't factor in here because the statistics should represent the original
+     * given responses and not whether one gets points anyway.
      * @param array $response a response, as might be passed to  grade_response().
      * @return array subpartid => question_classified_response objects.
      *      returns an empty array if no analysis is possible.
