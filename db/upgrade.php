@@ -156,29 +156,31 @@ function xmldb_qtype_matrix_upgrade(int $oldversion): bool {
         // When you create a new question version, you create new database IDs for them.
         // When you then regrade a question, the attempt data can't be touched and is therefore useless.
         // We therefore migrate to row/column index based responses.
-
-        core_php_time_limit::raise();
-        // Ensure we have a base memory limit with which to work.
-        raise_memory_limit(MEMORY_HUGE);
-        $now = time();
+        // First check if we even have any matrix questions.
         $transaction = $DB->start_delegated_transaction();
-        // Guessed batch size for processing questions when updating question attempt step data.
-        $questionbatchsize = 1000;
-        // Show a progress bar.
         $total = $DB->count_records('question', ['qtype' => 'matrix']);
-        $pbar = new progress_bar('upgrade_qtype_matrix_stepdata_to_row', 500, true);
-        $offset = 0;
-        while ($offset < $total) {
-            $pbar->update($offset, $total, "Updating attempt data for qtype_matrix questions - $offset/$total questions.");
-            $questionids = $DB->get_records(
-                'question', ['qtype' => 'matrix'], 'id ASC', 'id', $offset, $questionbatchsize
-            );
-            $offset += $questionbatchsize;
-            $matrixinfos = stepdata_migration_utils::extract_matrixinfos($questionids);
-            // Now migrate the cell stepdata for the question batch (also done in batches).
-            stepdata_migration_utils::migrate_stepdata($matrixinfos, $questionids);
+        if ($total) {
+            core_php_time_limit::raise();
+            // Ensure we have a base memory limit with which to work.
+            raise_memory_limit(MEMORY_HUGE);
+            $now = time();
+            // Guessed batch size for processing questions when updating question attempt step data.
+            $questionbatchsize = 1000;
+            // Show a progress bar.
+            $pbar = new progress_bar('upgrade_qtype_matrix_stepdata_to_row', 500, true);
+            $offset = 0;
+            while ($offset < $total) {
+                $pbar->update($offset, $total, "Updating attempt data for qtype_matrix questions - $offset/$total questions.");
+                $questionids = $DB->get_records(
+                    'question', ['qtype' => 'matrix'], 'id ASC', 'id', $offset, $questionbatchsize
+                );
+                $offset += $questionbatchsize;
+                $matrixinfos = stepdata_migration_utils::extract_matrixinfos($questionids);
+                // Now migrate the cell stepdata for the question batch (also done in batches).
+                stepdata_migration_utils::migrate_stepdata($matrixinfos, $questionids);
+            }
+            $pbar->update($offset, $total, 'Done. Seconds: '.(time() - $now));
         }
-        $pbar->update($offset, $total, 'Done. Seconds: '.(time() - $now));
         $transaction->allow_commit();
         upgrade_plugin_savepoint(true, $stepdatamigrationversion, 'qtype', 'matrix');
     }
