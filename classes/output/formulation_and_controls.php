@@ -74,8 +74,8 @@ class formulation_and_controls implements renderable, templatable {
                 $cellcontext['colindex'] = $colindex;
                 $cellcontext['responseparamname'] = $responseparamname;
                 $a = [
-                    'itemshorttext' => $row->shorttext,
-                    'answershorttext' => $col->shorttext
+                    'itemshorttext' => strip_tags($row->shorttext),
+                    'answershorttext' => strip_tags($col->shorttext)
                 ];
                 $cellcontext['arialabel'] = lang::get('cellarialabel', (object) $a);
 

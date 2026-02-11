@@ -130,10 +130,10 @@ Expired question: This can happen in preview mode.
 {{#cells}}
         <td class="cell {{ cellclass }}">
 {{#multiple}}
-            <input type="checkbox" name="{{ responseparamname }}" value="1"{{#isreadonly}} disabled="disabled"{{/isreadonly}}{{#ischecked}} checked="checked"{{/ischecked}} aria-label="{{{ arialabel }}}">
+            <input type="checkbox" name="{{ responseparamname }}" value="1"{{#isreadonly}} disabled="disabled"{{/isreadonly}}{{#ischecked}} checked="checked"{{/ischecked}} aria-label="{{ arialabel }}">
 {{/multiple}}
 {{^multiple}}
-            <input type="radio" name="{{ formfieldname }}" value="{{ colindex }}"{{#isreadonly}} disabled="disabled"{{/isreadonly}}{{#ischecked}} checked="checked"{{/ischecked}} aria-label="{{{ arialabel }}}">
+            <input type="radio" name="{{ formfieldname }}" value="{{ colindex }}"{{#isreadonly}} disabled="disabled"{{/isreadonly}}{{#ischecked}} checked="checked"{{/ischecked}} aria-label="{{ arialabel }}">
             <input hidden type="checkbox" id="{{ uniqid }}_{{ cellclass }}" name="{{ responseparamname }}" value="1"{{#ischecked}} checked="checked"{{/ischecked}} aria-hidden="true">
             <label hidden for="{{ uniqid }}_{{ cellclass }}">{{ cellclass }}</label>
 {{/multiple}}
