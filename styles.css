@@ -26,9 +26,6 @@
 .que.matrix .formulation table.matrix tbody td {
     border-width: 1px;
 }
-.que.matrix .formulation table.matrix tbody tr.autopassrow {
-    background-color: lightgreen;
-}
 .que.matrix .formulation table.matrix td,
 .que.matrix .formulation table.matrix th {
     text-align: left;
