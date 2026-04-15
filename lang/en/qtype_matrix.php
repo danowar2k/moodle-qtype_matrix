@@ -77,7 +77,7 @@ $string['cols_description'] = 'Description';
 $string['true'] = 'True';
 $string['false'] = 'False';
 // Autopass grade for row
-$string['editform_colheader_autopass'] = 'Auto pass row';
+$string['editform_colheader_autopass'] = 'Award free points';
 
 // Form validation
 $string['mustdefine1by1'] = 'You must define at least one answer statement and two responses';
@@ -88,14 +88,15 @@ $string['oneanswerperrow'] = 'You must provide an answer for each row';
 $string['show_non_kprime_gui'] = 'Show graphical user interface for options which are not strictly kprime matrix options (more than four rows, more than two columsn, multiple options).';
 $string['allow_dnd_ui'] = 'Allow usage of Drag&Drop UI';
 $string['allow_dnd_ui_descr'] = 'If allowed, the teachers will have the possibility to enable the Drag&Drop feature to any Matrix questions';
-$string['allow_autopass'] = 'Allow automatically passing grading rows in attempts';
-$string['allow_autopass_desc'] = 'Sometimes you identify badly worded questions/rows after the fact'
+$string['allow_autopass'] = 'Allow free points for items.';
+$string['allow_autopass_desc'] = 'Grading staff (e.g. teachers) can give each student points regardless if the answer was correct. This is useful to credit students with a free point after the quiz, if the item in a question was invalid or problematic.
+Participants will see an information about the free point in the quiz review.'
     . ' and just want to quickly give everyone a point.';
 
 // Question display
 $string['cellarialabel'] = 'Select possible answer {$a->answershorttext} for item {$a->itemshorttext}';
 $string['correctresponse'] = 'Correct Response';
-$string['autopassingrow'] = 'Everyone receives full points for this row';
+$string['autopassingrow'] = 'This answer was awarded points regardless of the answer.';
 
 // Regrading
 $string['regrade_different_nr_rows'] = 'Cannot regrade because question versions have different number of rows';
