@@ -22,6 +22,7 @@ use qtype_matrix\local\grading\difference;
 use qtype_matrix\local\grading\kany;
 use qtype_matrix\local\grading\kprime;
 use qtype_matrix\local\qtype_matrix_grading;
+use qtype_matrix\local\setting;
 use qtype_matrix_question;
 use question_attempt_step;
 use question_classified_response;
@@ -292,9 +293,9 @@ class qtype_matrix_question_test extends advanced_testcase {
     public function test_validate_can_regrade_with_other_version(
         qtype_matrix_question $somequestion,
         qtype_matrix_question $otherquestion,
-        bool $canregrade
+        bool $shouldberegradable
     ):void {
-        if ($canregrade) {
+        if ($shouldberegradable) {
             $this->assertNull($somequestion->validate_can_regrade_with_other_version($otherquestion));
         } else {
             $this->assertNotNull($somequestion->validate_can_regrade_with_other_version($otherquestion));
@@ -307,28 +308,36 @@ class qtype_matrix_question_test extends advanced_testcase {
 
     public function validate_can_regrade_data_provider() {
         $helper = new qtype_matrix_test_helper();
+
         $question = qtype_matrix_test_helper::make_question('default');
+
         $equivalentquestion = qtype_matrix_test_helper::make_question('default');
+
         $morerowsquestion = qtype_matrix_test_helper::make_question('default');
         $morerowsquestion->rows[12] = $helper->generate_matrix_row_or_column(12, true);
+
         $lessrowsquestion = qtype_matrix_test_helper::make_question('default');
         unset($lessrowsquestion->rows[4]);
+
         $morecolsquestion = qtype_matrix_test_helper::make_question('default');
         $morecolsquestion->rows[12] = $helper->generate_matrix_row_or_column(12, false);
+
         $lesscolsquestion = qtype_matrix_test_helper::make_question('default');
         unset($lesscolsquestion->rows[4]);
+
         $multiplesamenranswersquestion = qtype_matrix_test_helper::make_question('nondefault');
-        // $differentnrofanswersquestion = qtype_matrix_test_helper::make_question('multipletwocorrect');
+
+        $differentnrofanswersquestion = qtype_matrix_test_helper::make_question('multipletwocorrect');
+
         return [
             'Same question' => [$question, $question, true],
             'Equivalent question' => [$question, $equivalentquestion, true],
-            'More rows question' => [$question, $morerowsquestion, false],
-            'Less rows question' => [$question, $lessrowsquestion, false],
-            'More columns question' => [$question, $morecolsquestion, false],
-            'Less columns question' => [$question, $lesscolsquestion, false],
-            'Multiple, same nr of answers per row' => [$question, $multiplesamenranswersquestion, true],
-            // FIXME: See function, currently used in a workflow for the same amount of point for all participants
-            // 'Multiple, different nr of right answers per row' => [$question, $differentnrofanswersquestion, false],
+            'Question with more rows' => [$question, $morerowsquestion, false],
+            'Question with less rows' => [$question, $lessrowsquestion, false],
+            'Question with more columns' => [$question, $morecolsquestion, false],
+            'Question with less columns' => [$question, $lesscolsquestion, false],
+            'Changing multiple, but still one correct answer per row' => [$question, $multiplesamenranswersquestion, true],
+            'Changing multiple, more than one correct answer per row' => [$question, $differentnrofanswersquestion, false]
         ];
     }
 
@@ -367,24 +376,30 @@ class qtype_matrix_question_test extends advanced_testcase {
      * @dataProvider grade_response_data_provider
      * @param string $questiontype
      * @param string $grademethod
+     * @param bool $autopass
      * @param question_state $expectedstateforcorrect
      * @param question_state $expectedstateforincorrect
      * @param question_state $expectedstateforonerowwrong
      * @param question_state $expectedstateforcompletewithrowvariations
      * @param question_state $expectedstateforincompletepartiallycorrect
      * @param question_state $expectedstateforincompleteincorrect
+     * @param question_state $expectedstateforautopassonlycorrectanswer
      * @return void
      */
     public function test_grade_response(
         string $questiontype,
         string $grademethod,
+        bool $autopass,
         question_state $expectedstateforcorrect,
         question_state $expectedstateforincorrect,
         question_state $expectedstateforonerowwrong,
         question_state $expectedstateforcompletewithrowvariations,
         question_state $expectedstateforincompletepartiallycorrect,
         question_state $expectedstateforincompleteincorrect,
+        question_state $expectedstateforautopassonlycorrectanswer
     ): void {
+        $this->resetAfterTest();
+        set_config(setting::SETTING_ALLOW_AUTOPASS, $autopass, 'qtype_matrix');
         $question = qtype_matrix_test_helper::make_question($questiontype);
         $this->initialize_order($question);
         $question->grademethod = $grademethod;
@@ -412,6 +427,10 @@ class qtype_matrix_question_test extends advanced_testcase {
         $incompletewronganswer = qtype_matrix_test_helper::make_incomplete_wrong_answer($question);
         $state = $question->grade_response($incompletewronganswer)[1];
         $this->assertEquals($expectedstateforincompleteincorrect, $state);
+
+        $autopassonlycorrectanswer = qtype_matrix_test_helper::make_autopass_only_correct_answer($question);
+        $state = $question->grade_response($autopassonlycorrectanswer)[1];
+        $this->assertEquals($expectedstateforautopassonlycorrectanswer, $state);
     }
 
     /**
@@ -425,18 +444,38 @@ class qtype_matrix_question_test extends advanced_testcase {
         $w = question_state::$gradedwrong;
         $p = question_state::$gradedpartial;
         return [
-            'Default question, kprime grading' => ['default', kprime::get_name(), $r, $w, $w, $w, $w, $w],
-            'Default question, kany grading' => ['default', kany::get_name(), $r, $w, $p, $w, $w, $w],
-            'Default question, all grading' => ['default', all::get_name(), $r, $w, $p, $p, $p, $w],
-            'Default question, difference grading' => ['default', difference::get_name(), $r, $w, $p, $p, $p, $w],
-            'Nondefault question, kprime grading' => ['nondefault', kprime::get_name(), $r, $w, $w, $w, $w, $w],
-            'Nondefault question, kany grading' => ['nondefault', kany::get_name(), $r, $w, $p, $w, $w, $w],
-            'Nondefault question, all grading' => ['nondefault', all::get_name(), $r, $w, $p, $p, $p, $w],
-            'Nondefault question, difference grading' => ['nondefault', difference::get_name(), $r, $w, $p, $p, $p, $w],
-            'multipletwocorrect question, kprime grading' => ['multipletwocorrect', kprime::get_name(), $r, $w, $w, $w, $w, $w],
-            'multipletwocorrect question, kany grading' => ['multipletwocorrect', kany::get_name(), $r, $w, $p, $w, $w, $w],
-            'multipletwocorrect question, all grading' => ['multipletwocorrect', all::get_name(), $r, $w, $p, $p, $p, $w],
-            'multipletwocorrect question, difference grading' => ['multipletwocorrect', difference::get_name(), $r, $w, $p, $p, $p, $w]
+            'No autopass, Default question, kprime grading' => ['default', kprime::get_name(), false, $r, $w, $w, $w, $w, $w, $w],
+            'No autopass, Default question, kany grading' => ['default', kany::get_name(), false, $r, $w, $p, $w, $w, $w, $w],
+            'No autopass, Default question, all grading' => ['default', all::get_name(), false, $r, $w, $p, $p, $p, $w, $p],
+            'No autopass, Default question, difference grading' => ['default', difference::get_name(), false, $r, $w, $p, $p, $p, $w, $p],
+            'No autopass, Nondefault question, kprime grading' => ['nondefault', kprime::get_name(), false, $r, $w, $w, $w, $w, $w, $w],
+            'No autopass, Nondefault question, kany grading' => ['nondefault', kany::get_name(), false, $r, $w, $p, $w, $w, $w, $w],
+            'No autopass, Nondefault question, all grading' => ['nondefault', all::get_name(), false, $r, $w, $p, $p, $p, $w, $p],
+            'No autopass, Nondefault question, difference grading' => ['nondefault', difference::get_name(), false, $r, $w, $p, $p, $p, $w, $p],
+            'No autopass, multipletwocorrect question, kprime grading' => ['multipletwocorrect', kprime::get_name(), false, $r, $w, $w, $w, $w, $w, $w],
+            'No autopass, multipletwocorrect question, kany grading' => ['multipletwocorrect', kany::get_name(), false, $r, $w, $p, $w, $w, $w, $w],
+            'No autopass, multipletwocorrect question, all grading' => ['multipletwocorrect', all::get_name(), false, $r, $w, $p, $p, $p, $w, $p],
+            'No autopass, multipletwocorrect question, difference grading' => ['multipletwocorrect', difference::get_name(), false, $r, $w, $p, $p, $p, $w, $p],
+//            question_state no wrong,
+//        question_state 1-4 wrong,
+//        question_state 1 wrong,
+// 4       question_state default nondefault: 3,4 wrong, multiple: 2+3 hw, 4 wrong
+// 5       question_state default: 3+4 wrong, multiple: 2 hw, 3+4 wrong,
+// 6       question_state 1-4 wrong,
+// 7       question_state 1+3 wrong
+// all: partiell, difference: partiell, kany: eine weniger ist erlaubt, kprime: alle müssen
+            'Autopass on, Default question, kprime grading' => ['default', kprime::get_name(), true, $r, $w, $r, $w, $w, $w, $r],
+            'Autopass on, Default question, kany grading' => ['default', kany::get_name(), true, $r, $w, $r, $p, $p, $w, $r],
+            'Autopass on, Default question, all grading' => ['default', all::get_name(), true, $r, $p, $r, $p, $p, $p, $r],
+            'Autopass on, Default question, difference grading' => ['default', difference::get_name(), true, $r, $p, $r, $p, $p, $p, $r],
+            'Autopass on, Nondefault question, kprime grading' => ['nondefault', kprime::get_name(), true, $r, $w, $r, $w, $w, $w, $r],
+            'Autopass on, Nondefault question, kany grading' => ['nondefault', kany::get_name(), true, $r, $w, $r, $p, $p, $w, $r],
+            'Autopass on, Nondefault question, all grading' => ['nondefault', all::get_name(), true, $r, $p, $r, $p, $p, $p, $r],
+            'Autopass on, Nondefault question, difference grading' => ['nondefault', difference::get_name(), true, $r, $p, $r, $p, $p, $p, $r],
+            'Autopass on, multipletwocorrect question, kprime grading' => ['multipletwocorrect', kprime::get_name(), true, $r, $w, $r, $w, $w, $w, $r],
+            'Autopass on, multipletwocorrect question, kany grading' => ['multipletwocorrect', kany::get_name(), true, $r, $w, $r, $w, $w, $w, $r],
+            'Autopass on, multipletwocorrect question, all grading' => ['multipletwocorrect', all::get_name(), true, $r, $p, $r, $p, $p, $p, $r],
+            'Autopass on, multipletwocorrect question, difference grading' => ['multipletwocorrect', difference::get_name(), true, $r, $p, $r, $p, $p, $p, $r]
         ];
     }
     /**

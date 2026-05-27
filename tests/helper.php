@@ -199,6 +199,30 @@ class qtype_matrix_test_helper extends question_test_helper {
         return self::build_answer_with_matrix($answermatrix);
     }
 
+    /**
+     * @param qtype_matrix_question $question
+     * @return array
+     */
+    public static function make_autopass_only_correct_answer(qtype_matrix_question $question): array {
+        $answermatrix = [];
+        switch ($question->questiontext) {
+            case 'default':
+            case 'nondefault':
+                $answermatrix[0] = [1, 0, 0, 0];
+                $answermatrix[1] = [0, 1, 0, 0];
+                $answermatrix[2] = [0, 0, 0, 0];
+                $answermatrix[3] = [0, 1, 0, 0];
+                break;
+            case 'multipletwocorrect':
+                $answermatrix[0] = [0, 1, 1, 0];
+                $answermatrix[1] = [1, 1, 0, 0];
+                $answermatrix[2] = [0, 0, 1, 1];
+                $answermatrix[3] = [1, 1, 0, 0];
+                break;
+        }
+        return self::build_answer_with_matrix($answermatrix);
+    }
+
     public function get_test_questions():array {
         return ['default', 'nondefault', 'multipletwocorrect'];
     }
@@ -272,7 +296,8 @@ class qtype_matrix_test_helper extends question_test_helper {
             $optionrow->description['text'] = $row->description['text'];
             $optionrow->description['format'] = $row->description['format'];
             $optionrow->feedback['text'] = $row->feedback['text'];
-            $optionrow->feedback['format'] = $row->feedback['format'];;
+            $optionrow->feedback['format'] = $row->feedback['format'];
+            $optionrow->autopass = $row->autopass;
             $questiondata->options->rows[$row->id] = $optionrow;
         }
         $questiondata->options->cols = [];
@@ -318,6 +343,7 @@ class qtype_matrix_test_helper extends question_test_helper {
             $form->rows_feedback = $form->rows_feedback ?? [];
             $form->rows_feedback[$rowindex]['text'] = $row->feedback['text'];
             $form->rows_feedback[$rowindex]['format'] = $row->feedback['format'];
+            $form->rows_autopass[$rowindex] = $row->autopass;
             $rowindex++;
         }
         $colindex = 0;
@@ -471,9 +497,12 @@ class qtype_matrix_test_helper extends question_test_helper {
         ];
         if ($row) {
             $roworcolumn->feedback = [
-                'text' => 'Feedback '.$id,
+                'text' => 'Feedback ' . $id,
                 'format' => FORMAT_HTML
             ];
+            // all odd rows are always autopassing
+            $autopass = ($id % 2 == 0);
+            $roworcolumn->autopass = $autopass;
         }
         return $roworcolumn;
     }

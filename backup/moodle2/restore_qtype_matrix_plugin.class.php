@@ -24,7 +24,6 @@ require_once $CFG->dirroot . '/question/type/matrix/questiontype.php';
 
 use qtype_matrix\db\question_matrix_store;
 use qtype_matrix\db\stepdata_migration_utils;
-use core\exception\moodle_exception;
 
 /**
  * restore plugin class that provides the necessary information
@@ -32,6 +31,11 @@ use core\exception\moodle_exception;
  *
  */
 class restore_qtype_matrix_plugin extends restore_qtype_plugin {
+
+    public const ERROR_INCONSISTENT_BEHAVIOUR = 'error_inconsistent_behaviour_restoring_backup';
+
+    public const ERROR_STEP_DATA_NOT_MIGRATABLE =
+        'error_qtype_matrix_attempt_step_data_not_migratable';
 
     private $attemptorders = [];
 
@@ -52,26 +56,25 @@ class restore_qtype_matrix_plugin extends restore_qtype_plugin {
     /**
      * Process the qtype/matrix
      *
-     * @param $data
+     * @param $matrixbackup
      * @return void
      * @throws dml_exception
      */
-    public function process_matrix($data): void {
+    public function process_matrix($matrixbackup): void {
         global $DB;
-        $data = (object) $data;
-        $oldid = $data->id;
+        $matrixbackup = (object) $matrixbackup;
 
-        if ($this->is_question_created()) {
-            $qtypeobj = question_bank::get_qtype($this->pluginname);
-            $data->{$qtypeobj->questionid_column_name()} = $this->get_new_parentid('question');
-            $extrafields = $qtypeobj->extra_question_fields();
-            $extrafieldstable = array_shift($extrafields);
-            $newitemid = $DB->insert_record($extrafieldstable, $data);
-            $this->set_mapping('matrix', $oldid, $newitemid);
+        if (!$this->is_question_created()) {
+            // Question was mapped, so identical structures exist.
+            return;
         }
-        else {
-            $this->set_mapping('matrix', $oldid, null);
-        }
+        // A question is created if even the slightest difference between the database and backup question exists.
+        // If a question was created and not mapped, all the other Matrix structures will need to be created, too.
+        $qtypeobj = question_bank::get_qtype($this->pluginname);
+        $matrixbackup->{$qtypeobj->questionid_column_name()} = $this->get_new_parentid('question');
+        $matrixtable = $qtypeobj->extra_question_fields()[0];
+        $newmatrixid = $DB->insert_record($matrixtable, $matrixbackup);
+        $this->set_mapping('matrix', $matrixbackup->id, $newmatrixid);
     }
 
     /**
@@ -86,81 +89,98 @@ class restore_qtype_matrix_plugin extends restore_qtype_plugin {
     /**
      * Process the qtype/rows/row element.
      *
-     * @param $data
+     * @param $rowbackup
      * @return void
      * @throws dml_exception
      */
-    public function process_row($data): void {
-        $this->process_dim($data, true);
+    public function process_row($rowbackup): void {
+        $this->process_dim($rowbackup, true);
     }
 
     /**
      * Process the qtype/cols/col element.
      *
-     * @param $data
+     * @param $colbackup
      * @return void
      * @throws dml_exception
      */
-    public function process_col($data): void {
-        $this->process_dim($data, false);
+    public function process_col($colbackup): void {
+        $this->process_dim($colbackup, false);
     }
 
-    private function process_dim($backupdata, bool $isrow): void {
+    private function process_dim($dimbackup, bool $isrow): void {
         global $DB;
-        $backupdata = (object) $backupdata;
-        $oldid = $backupdata->id;
+        $dimbackup = (object) $dimbackup;
 
-        $oldmatrixid = $this->get_old_parentid('matrix');
-        $newmatrixid = $this->get_new_parentid('matrix');
-        if (!$newmatrixid) {
+        if (!$this->is_question_created()) {
+            // Question was mapped, so identical structures exist.
             return;
         }
+        $newmatrixid = $this->get_new_parentid('matrix');
 
-        $dim = $isrow ? 'row' : 'col';
-        $dimtable = $isrow ? 'qtype_matrix_rows' : 'qtype_matrix_cols';
-        $newitemid = 0;
-        if ($this->is_question_created()) {
-            $backupdata->matrixid = $newmatrixid;
-            $newitemid = $DB->insert_record($dimtable, $backupdata);
-        } else {
-            // FIXME: It isn't ensured that 2 rows/cols don't have the same shorttext right now.
-            $originalrecords = $DB->get_records($dimtable, ['matrixid' => $newmatrixid]);
-            foreach ($originalrecords as $record) {
-                if ($backupdata->shorttext == $record->shorttext) {
-                    $newitemid = $record->id;
-                }
+        if (!$newmatrixid) {
+            // This should not happen. Either question and matrix were created or both were mapped.
+            throw new restore_step_exception(self::ERROR_INCONSISTENT_BEHAVIOUR);
+        }
+
+        if ($isrow && $dimbackup->autopass) {
+            // Avoid storing first versions of matrix questions where autopassing is enabled.
+            // Autopassing the first version would make no sense.
+            if ($this->created_as_first_version()) {
+                $dimbackup->autopass = false;
             }
         }
-        if (!$newitemid) {
-            $info = new stdClass();
-            $info->filequestionid = $oldmatrixid;
-            $info->dbquestionid = $newmatrixid;
-            $info->answer = $backupdata->shorttext;
-            throw new restore_step_exception('error_question_answers_missing_in_db', $info);
-        } else {
-            $this->set_mapping($dim, $oldid, $newitemid);
-        }
+        // At this point we know that matrix dimensions must be created using the backup.
+        $dimbackup->matrixid = $newmatrixid;
+
+        $dimtable = $isrow ? 'qtype_matrix_rows' : 'qtype_matrix_cols';
+        $newdimid = $DB->insert_record($dimtable, $dimbackup);
+
+        $dim = $isrow ? 'row' : 'col';
+        $this->set_mapping($dim, $dimbackup->id, $newdimid);
     }
 
+    public function created_as_first_version():bool {
+        global $DB;
+        $newquestionversionid = $this->get_new_parentid('question_versions');
+        if (!$newquestionversionid) {
+            // This should never happen here.
+            throw new restore_step_exception(self::ERROR_INCONSISTENT_BEHAVIOUR);
+        }
+        $params = [
+            'id' => $newquestionversionid
+        ];
+        $newquestionversion = (int) $DB->get_field('question_versions', 'version', $params);
+        return !($newquestionversion > 1);
+    }
     /**
      * Process the qtype/weights/weight element
      *
-     * @param $data
+     * @param $weightbackup
      * @return void
      * @throws dml_exception
      */
-    public function process_weight($data): void {
+    public function process_weight($weightbackup): void {
         global $DB;
-        $data = (object) $data;
-        $oldid = $data->id;
+        $weightbackup = (object) $weightbackup;
 
-        $key = $data->colid . 'x' . $data->rowid;
-        $data->colid = $this->get_mappingid('col', $data->colid);
-        $data->rowid = $this->get_mappingid('row', $data->rowid);
+        if (!$this->is_question_created()) {
+            // Question was mapped, so identical structures exist.
+            return;
+        }
+
+        $weightmapid = $weightbackup->colid . 'x' . $weightbackup->rowid;
+        $weightbackup->colid = $this->get_mappingid('col', $weightbackup->colid);
+        $weightbackup->rowid = $this->get_mappingid('row', $weightbackup->rowid);
+
+        if (!$weightbackup->colid || !$weightbackup->rowid) {
+            // This should not happen. If a question was created, so would be the dimension records.
+            throw new restore_step_exception(self::ERROR_INCONSISTENT_BEHAVIOUR);
+        }
         // This prevents bad data to arrive in the database. Currently the only useful weight values are 1 or 0.
-        $data->weight = (int) (bool) $data->weight;
-        $newitemid = $DB->insert_record('qtype_matrix_weights', $data);
-        $this->set_mapping('weight' . $key, $oldid, $newitemid);
+        $weightbackup->weight = (int) (bool) $weightbackup->weight;
+        $newweightid = $DB->insert_record('qtype_matrix_weights', $weightbackup);
+        $this->set_mapping('weight' . $weightmapid, $weightbackup->id, $newweightid);
     }
 
     /**
@@ -200,20 +220,22 @@ class restore_qtype_matrix_plugin extends restore_qtype_plugin {
 
     public function recode_response($questionid, $sequencenumber, array $response): array {
         $recodedresponse = [];
+        // We wouldn't need to recode a response if there hadn't been matrix structures created.
         $newattemptid = $this->get_new_parentid('question_attempt');
 
         if ($sequencenumber == 0) {
+            // For a restore to be possible, it's vital that the row order is extractable.
             if (isset($response[qtype_matrix_question::KEY_ROWS_ORDER])) {
                 $recodedresponse[qtype_matrix_question::KEY_ROWS_ORDER] =
                     $this->recode_choice_order($response[qtype_matrix_question::KEY_ROWS_ORDER]);
                 $this->attemptorders[$newattemptid] = explode(',', $recodedresponse[qtype_matrix_question::KEY_ROWS_ORDER]);
             } else {
-                throw new restore_step_exception('error_qtype_matrix_attempt_step_data_not_migratable');
+                throw new restore_step_exception(self::ERROR_STEP_DATA_NOT_MIGRATABLE);
             }
         } else {
             $neworder = $this->attemptorders[$newattemptid] ?? [];
             if (!$neworder) {
-                throw new restore_step_exception('error_qtype_matrix_attempt_step_data_not_migratable');
+                throw new restore_step_exception(self::ERROR_STEP_DATA_NOT_MIGRATABLE);
             }
             $store = $this->get_matrix_store();
             $restoredmatrix = $store->get_matrix_by_question_id($questionid);
@@ -221,20 +243,26 @@ class restore_qtype_matrix_plugin extends restore_qtype_plugin {
             $restoredcolids = array_keys($restoredcols);
             foreach ($response as $key => $value) {
                 if (str_contains($key, 'cell')) {
+                    // The attempt still uses the old style stepdata syntax, i.e. absolute database IDs.
+                    // We need to try to fix that, or else the attempt is unusable.
+                    // So we need to go old ID -> new ID -> index in the order of dimensions.
                     $oldrowid = stepdata_migration_utils::extract_row_id($key);
                     $newrowid = $this->get_mappingid('row', $oldrowid, 0);
                     $newrowindex = array_search($newrowid, $neworder);
                     $oldcolid = stepdata_migration_utils::extract_col_id($key, $value);
                     $newcolid = $this->get_mappingid('col', $oldcolid, 0);
                     $newcolindex = array_search($newcolid, $restoredcolids);
-                    // Either we can map a backup ID to new rows/cols of a new question or to an already existing question.
-                    // If we couldn't, then the row/col IDs from the attempt point to those of another earlier question version
+                    // Either we can map a backup dimension ID to new dimension IDs of a new question
+                    // or to an already existing question.
+                    // If we can't, then the absolute dimension IDs in the attempt's order data
+                    // point to those of another earlier question version.
                     // This version may or may not be in the backup and thus may or may not have been restored yet.
                     if ($newrowindex === false || $newcolindex === false) {
-                        throw new restore_step_exception('error_qtype_matrix_attempt_step_data_not_migratable');
+                        throw new restore_step_exception(self::ERROR_STEP_DATA_NOT_MIGRATABLE);
                     }
-                    $newname = qtype_matrix_question::responsekey($newrowindex, $newcolindex);
-                    $recodedresponse[$newname] = true;
+                    // Finally we switch to saying "The Xth row and Yth column is checked in this step".
+                    $newresponsepartname = qtype_matrix_question::responsekey($newrowindex, $newcolindex);
+                    $recodedresponse[$newresponsepartname] = true;
                 } else {
                     $recodedresponse[$key] = $value;
                 }
@@ -294,8 +322,7 @@ class restore_qtype_matrix_plugin extends restore_qtype_plugin {
      */
     public static function convert_backup_to_questiondata(array $backupdata): stdClass {
         $questiondata = parent::convert_backup_to_questiondata($backupdata);
-        $questiondata = qtype_matrix::clean_data($questiondata, true);
-        // Add the matrix-specific options.
+        // Add the matrix-specific options ($questiondata->options already exists).
         if (isset($backupdata['plugin_qtype_matrix_question']['matrix'][0])) {
             $matrix = &$backupdata['plugin_qtype_matrix_question']['matrix'][0];
 
@@ -363,7 +390,7 @@ class restore_qtype_matrix_plugin extends restore_qtype_plugin {
             }
             $questiondata->options->weights = $weights;
         }
-
+        $questiondata = qtype_matrix::clean_data($questiondata, true);
         return $questiondata;
     }
 

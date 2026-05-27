@@ -48,7 +48,7 @@ class backup_qtype_matrix_plugin extends backup_qtype_plugin {
         $matrixcol = new backup_nested_element('col', ['id'], ['shorttext', 'description']);
 
         $matrixrows = new backup_nested_element('rows');
-        $matrixrow = new backup_nested_element('row', ['id'], ['shorttext', 'description', 'feedback']);
+        $matrixrow = new backup_nested_element('row', ['id'], ['shorttext', 'description', 'feedback', 'autopass']);
 
         $matrixweights = new backup_nested_element('weights');
         $matrixweight = new backup_nested_element('weight', ['id'], ['rowid', 'colid', 'weight']);
