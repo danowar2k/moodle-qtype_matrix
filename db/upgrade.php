@@ -162,22 +162,29 @@ function xmldb_qtype_matrix_upgrade(int $oldversion): bool {
         if ($total) {
             core_php_time_limit::raise();
             // Ensure we have a base memory limit with which to work.
+            // This should at least amount to 2GB RAM for this process.
             raise_memory_limit(MEMORY_HUGE);
             $now = time();
-            // Guessed batch size for processing questions when updating question attempt step data.
-            $questionbatchsize = 1000;
+            // Batch size for processing questions when updating question attempt step data.
+            // The given batch size led to 1.4 GB of the process being matrixinfos.
+            // This was deemed okay because the recordsets do not take much memory.
+            $questionbatchsize = 25000;
             // Show a progress bar.
             $pbar = new progress_bar('upgrade_qtype_matrix_stepdata_to_row', 500, true);
             $offset = 0;
             while ($offset < $total) {
                 $pbar->update($offset, $total, "Updating attempt data for qtype_matrix questions - $offset/$total questions.");
-                $questionids = $DB->get_records(
+                $questionids = array_keys($DB->get_records(
                     'question', ['qtype' => 'matrix'], 'id ASC', 'id', $offset, $questionbatchsize
-                );
+                ));
                 $offset += $questionbatchsize;
                 $matrixinfos = stepdata_migration_utils::extract_matrixinfos($questionids);
                 // Now migrate the cell stepdata for the question batch (also done in batches).
                 stepdata_migration_utils::migrate_stepdata($matrixinfos, $questionids);
+                // Necessary to prevent out of memory errors because PHP didn't garbage collect early enough.
+                unset($matrixinfos);
+                gc_collect_cycles();
+                gc_mem_caches();
             }
             $pbar->update($offset, $total, 'Done. Seconds: '.(time() - $now));
         }
