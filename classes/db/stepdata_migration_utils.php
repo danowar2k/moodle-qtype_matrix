@@ -70,14 +70,16 @@ class stepdata_migration_utils {
         return qtype_matrix_question::responsekey($newrowindex, $newcolindex);
     }
 
-    public static function stepdata_sql(string $qinsql, string $stepdatanamelike): string {
+    public static function stepdata_sql(int $minqid, int $maxqid, string $stepdatanamelike): string {
+        $operator = str_contains($stepdatanamelike, '%') ? 'LIKE' : '=';
          return "SELECT qasd.id as stepdataid, q.id as questionid, qa.id as attemptid, qas.id as stepid, qasd.name, qasd.value
                 FROM {question} q
                 JOIN {question_attempts} qa ON qa.questionid = q.id
                 JOIN {question_attempt_steps} qas ON qas.questionattemptid = qa.id
                 JOIN {question_attempt_step_data} qasd ON qasd.attemptstepid = qas.id
-                WHERE qasd.name LIKE '" . $stepdatanamelike . "' 
-                AND q.id " . $qinsql . "
+                WHERE qasd.name ".$operator." '" . $stepdatanamelike . "'
+                AND q.qtype = 'matrix'
+                AND q.id BETWEEN ".$minqid." AND ".$maxqid." 
                 ORDER BY qasd.id
             ";
     }
@@ -87,7 +89,7 @@ class stepdata_migration_utils {
 
         $matrixinfos = [];
 
-        [$qinsql, $qidparams] = $DB->get_in_or_equal(array_keys($questionids));
+        [$qinsql, $qidparams] = $DB->get_in_or_equal($questionids);
         // Leave out matrix questions with broken data (missing col records)
         $colssql = "
                 SELECT qmc.id as colid, qm.id as matrixid, q.id as questionid
@@ -119,9 +121,10 @@ class stepdata_migration_utils {
         $matrixcols->close();
 
         // Collect info about attempt row order.
-        $orderstepdatasql = stepdata_migration_utils::stepdata_sql($qinsql, '_order');
-        // FIXME: Should probably be done in batches of 100.000
-        $orderdatars = $DB->get_recordset_sql($orderstepdatasql, $qidparams);
+        $minqid = min($questionids);
+        $maxqid = max($questionids);
+        $orderstepdatasql = stepdata_migration_utils::stepdata_sql($minqid, $maxqid, '_order');
+        $orderdatars = $DB->get_recordset_sql($orderstepdatasql);
         foreach ($orderdatars as $orderdata) {
             if (!$orderdata->questionid || !isset($matrixinfos[$orderdata->questionid])) {
                 continue;
@@ -137,12 +140,14 @@ class stepdata_migration_utils {
 
     public static function migrate_stepdata(array &$matrixinfos, array $questionids):void {
         global $DB;
-        [$qinsql, $qidparams] = $DB->get_in_or_equal(array_keys($questionids));
-        $cellstepdatasql = self::stepdata_sql($qinsql, 'cell%');
-        // FIXME: Should probably be done in batches of 100.000
+        $minqid = min($questionids);
+        $maxqid = max($questionids);
+        $cellstepdatasql = self::stepdata_sql($minqid, $maxqid, 'cell%');
 
-        $celldataupdatechunksize = 10000;
-        $celldatars = $DB->get_recordset_sql($cellstepdatasql, $qidparams);
+        // Lower update chunks lead to lower times for the update query.
+        // This seems to be caused by using lots of CASE statements.
+        $celldataupdatechunksize = 100;
+        $celldatars = $DB->get_recordset_sql($cellstepdatasql);
         $nrprocessedchunkcelldata = 0;
         $celldataids = [];
         $sqlnamecase = '';
@@ -190,5 +195,6 @@ class stepdata_migration_utils {
             }
         }
         $celldatars->close();
+        unset($celldatars);
     }
 }
